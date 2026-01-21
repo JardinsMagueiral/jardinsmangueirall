@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Menu, X, Home, Users, Building, Handshake, MessageCircle, Phone, Calendar } from "lucide-react";
+import { Menu, Home, Users, Building, Handshake, MessageCircle, Phone, Calendar, User, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import logo from "@/assets/logo.png";
+import { useAuth } from "@/contexts/AuthContext";
 const menuItems = [{
   label: "Início",
   href: "/",
@@ -39,6 +39,8 @@ const menuItems = [{
 }];
 export function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const { user, profile, loading } = useAuth();
+  
   return <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container flex h-16 items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2">
@@ -56,6 +58,23 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {!loading && (
+            user ? (
+              <Button variant="outline" size="sm" className="hidden sm:flex" asChild>
+                <Link to="/minha-conta">
+                  <User className="mr-2 h-4 w-4" />
+                  {profile?.nome?.split(' ')[0] || "Minha Conta"}
+                </Link>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" className="hidden sm:flex" asChild>
+                <Link to="/login">
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Entrar
+                </Link>
+              </Button>
+            )
+          )}
           <Button variant="whatsapp" size="sm" className="hidden sm:flex" asChild>
             <a href="https://wa.me/5561981537063" target="_blank" rel="noopener noreferrer">
               <MessageCircle className="mr-2 h-4 w-4" />
@@ -82,7 +101,24 @@ export function Header() {
                     <item.icon className="h-5 w-5" />
                     {item.label}
                   </Link>)}
-                <Button variant="whatsapp" className="mt-4" asChild>
+                {!loading && (
+                  user ? (
+                    <Button variant="outline" className="mt-4" asChild>
+                      <Link to="/minha-conta" onClick={() => setIsOpen(false)}>
+                        <User className="mr-2 h-4 w-4" />
+                        {profile?.nome?.split(' ')[0] || "Minha Conta"}
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" className="mt-4" asChild>
+                      <Link to="/login" onClick={() => setIsOpen(false)}>
+                        <LogIn className="mr-2 h-4 w-4" />
+                        Entrar
+                      </Link>
+                    </Button>
+                  )
+                )}
+                <Button variant="whatsapp" className="mt-2" asChild>
                   <a href="https://wa.me/5561981537063" target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="mr-2 h-4 w-4" />
                     Fale Conosco
