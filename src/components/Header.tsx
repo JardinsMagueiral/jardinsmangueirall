@@ -42,7 +42,7 @@ export function Header() {
   return <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container flex h-16 items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2">
-          <img alt="Jardins Mangueiral" className="h-12 w-12 object-contain" src="/lovable-uploads/c352527c-9283-4afd-b086-50871a8bc0ee.png" />
+          <img alt="Jardins Mangueiral" className="h-12 w-12 object-contain" src="/lovable-uploads/5288ff73-1738-4c5f-9783-38b14fcf30d4.png" />
           <span className="hidden font-serif text-lg font-semibold text-primary sm:inline-block">
             Jardins Mangueiral
           </span>
