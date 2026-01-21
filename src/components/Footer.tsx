@@ -1,15 +1,13 @@
 import { Link } from "react-router-dom";
 import { MessageCircle, Phone, MapPin, Heart } from "lucide-react";
 import logo from "@/assets/logo.png";
-
 export function Footer() {
-  return (
-    <footer className="border-t bg-primary text-primary-foreground">
+  return <footer className="border-t bg-primary text-primary-foreground">
       <div className="container px-4 py-12">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div>
             <Link to="/" className="flex items-center gap-2">
-              <img src={logo} alt="Jardins Mangueiral" className="h-14 w-14 rounded-full bg-card p-1" />
+              <img alt="Jardins Mangueiral" className="h-14 w-14 rounded-full bg-card p-1" src="/lovable-uploads/d862c185-3b4c-4fcf-9c6f-e06b2d7f734b.png" />
               <div>
                 <span className="font-serif text-lg font-semibold">Jardins Mangueiral</span>
                 <p className="text-sm opacity-80">Luciana Nepomuceno</p>
@@ -64,6 +62,5 @@ export function Footer() {
           </p>
         </div>
       </div>
-    </footer>
-  );
+    </footer>;
 }
