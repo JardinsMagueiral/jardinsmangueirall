@@ -4,9 +4,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+
+// Public pages
 import Index from "./pages/Index";
 import QuemSomos from "./pages/QuemSomos";
 import Imoveis from "./pages/Imoveis";
+import ImovelDetalhe from "./pages/ImovelDetalhe";
 import Comunidade from "./pages/Comunidade";
 import Parceiros from "./pages/Parceiros";
 import Grupos from "./pages/Grupos";
@@ -14,28 +19,94 @@ import Eventos from "./pages/Eventos";
 import Contato from "./pages/Contato";
 import NotFound from "./pages/NotFound";
 
+// Auth pages
+import Login from "./pages/auth/Login";
+import Cadastro from "./pages/auth/Cadastro";
+
+// Client pages
+import MinhaConta from "./pages/cliente/MinhaConta";
+import NovoImovel from "./pages/cliente/NovoImovel";
+
+// Admin pages
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminImoveis from "./pages/admin/AdminImoveis";
+import AdminNovoImovel from "./pages/admin/AdminNovoImovel";
+
 const queryClient = new QueryClient();
 
 const App = () => (
   <HelmetProvider>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/quem-somos" element={<QuemSomos />} />
-            <Route path="/imoveis" element={<Imoveis />} />
-            <Route path="/comunidade" element={<Comunidade />} />
-            <Route path="/parceiros" element={<Parceiros />} />
-            <Route path="/grupos" element={<Grupos />} />
-            <Route path="/eventos" element={<Eventos />} />
-            <Route path="/contato" element={<Contato />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <AuthProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<Index />} />
+              <Route path="/quem-somos" element={<QuemSomos />} />
+              <Route path="/imoveis" element={<Imoveis />} />
+              <Route path="/imoveis/:id" element={<ImovelDetalhe />} />
+              <Route path="/comunidade" element={<Comunidade />} />
+              <Route path="/parceiros" element={<Parceiros />} />
+              <Route path="/grupos" element={<Grupos />} />
+              <Route path="/eventos" element={<Eventos />} />
+              <Route path="/contato" element={<Contato />} />
+
+              {/* Auth routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/cadastro" element={<Cadastro />} />
+
+              {/* Client routes (protected) */}
+              <Route
+                path="/minha-conta"
+                element={
+                  <ProtectedRoute>
+                    <MinhaConta />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/minha-conta/novo-imovel"
+                element={
+                  <ProtectedRoute>
+                    <NovoImovel />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Admin routes (protected + admin required) */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/imoveis"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminImoveis />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/novo-imovel"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminNovoImovel />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* 404 */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   </HelmetProvider>
