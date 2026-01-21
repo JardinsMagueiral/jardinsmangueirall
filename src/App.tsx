@@ -16,6 +16,7 @@ import Comunidade from "./pages/Comunidade";
 import Parceiros from "./pages/Parceiros";
 import Grupos from "./pages/Grupos";
 import Eventos from "./pages/Eventos";
+import Calculadoras from "./pages/Calculadoras";
 import Contato from "./pages/Contato";
 import NotFound from "./pages/NotFound";
 
@@ -52,6 +53,7 @@ const App = () => (
               <Route path="/parceiros" element={<Parceiros />} />
               <Route path="/grupos" element={<Grupos />} />
               <Route path="/eventos" element={<Eventos />} />
+              <Route path="/calculadoras" element={<Calculadoras />} />
               <Route path="/contato" element={<Contato />} />
 
               {/* Auth routes */}
