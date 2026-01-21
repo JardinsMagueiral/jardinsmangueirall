@@ -2,16 +2,14 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Users, Heart, Target, Sparkles } from "lucide-react";
 import logo from "@/assets/logo.png";
-
 const QuemSomos = () => {
-  return (
-    <div className="flex min-h-screen flex-col bg-background">
+  return <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex-1">
         {/* Hero */}
         <section className="bg-primary py-20 text-primary-foreground">
           <div className="container px-4 text-center">
-            <img src={logo} alt="Jardins Mangueiral" className="mx-auto mb-6 h-24 w-24" />
+            <img alt="Jardins Mangueiral" className="mx-auto mb-6 h-24 w-120033" src="/lovable-uploads/36d2bf22-163c-4f4a-a838-2f8d92b036d5.png" />
             <h1 className="font-serif text-4xl font-bold md:text-5xl">Quem Somos</h1>
             <p className="mx-auto mt-4 max-w-2xl text-lg opacity-90">
               Nossa história, propósito e por que essa comunidade existe
@@ -71,8 +69,6 @@ const QuemSomos = () => {
         </section>
       </main>
       <Footer />
-    </div>
-  );
+    </div>;
 };
-
 export default QuemSomos;
