@@ -23,7 +23,7 @@ const ctas = [
     icon: Megaphone,
     title: "Divulgue seu Negócio",
     description: "Seja um parceiro local",
-    link: "https://wa.me/5561981537063?text=Olá! Quero divulgar meu negócio local",
+    link: "https://wa.me/5561991647984?text=Olá! Quero divulgar meu negócio local",
     variant: "secondary" as const,
     isExternal: true,
   },

@@ -35,7 +35,7 @@ const Parceiros = () => {
                 <CardContent>
                   <Button variant="whatsapp" size="lg" className="w-full" asChild>
                     <a 
-                      href="https://wa.me/5561981537063?text=Olá! Procuro um prestador de serviço" 
+                      href="https://wa.me/5561991647984?text=Olá! Procuro um prestador de serviço" 
                       target="_blank"
                     >
                       <MessageCircle className="mr-2 h-5 w-5" />
@@ -56,7 +56,7 @@ const Parceiros = () => {
                 <CardContent>
                   <Button variant="whatsapp" size="lg" className="w-full" asChild>
                     <a 
-                      href="https://wa.me/5561981537063?text=Olá! Quero conhecer as empresas parceiras" 
+                      href="https://wa.me/5561991647984?text=Olá! Quero conhecer as empresas parceiras" 
                       target="_blank"
                     >
                       <MessageCircle className="mr-2 h-5 w-5" />
@@ -77,7 +77,7 @@ const Parceiros = () => {
                 <CardContent>
                   <Button size="lg" className="w-full" asChild>
                     <a 
-                      href="https://wa.me/5561981537063?text=Olá! Quero indicar um profissional" 
+                      href="https://wa.me/5561991647984?text=Olá! Quero indicar um profissional" 
                       target="_blank"
                     >
                       <MessageCircle className="mr-2 h-5 w-5" />
@@ -98,7 +98,7 @@ const Parceiros = () => {
                 <CardContent>
                   <Button variant="outline" size="lg" className="w-full" asChild>
                     <a 
-                      href="https://wa.me/5561981537063?text=Olá! Quero ser parceiro do Jardins Mangueiral" 
+                      href="https://wa.me/5561991647984?text=Olá! Quero ser parceiro do Jardins Mangueiral" 
                       target="_blank"
                     >
                       <MessageCircle className="mr-2 h-5 w-5" />

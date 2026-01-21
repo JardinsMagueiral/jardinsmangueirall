@@ -108,7 +108,7 @@ export default function ImovelDetalhe() {
       `Olá! Tenho interesse no ${imovel.tipo} para ${imovel.operacao} localizado em ${imovel.endereco}, ${imovel.bairro}. ` +
       `Valor: ${formatPrice(imovel.preco)}. Podemos conversar?`
     );
-    window.open(`https://wa.me/5561981537063?text=${message}`, "_blank");
+    window.open(`https://wa.me/5561991647984?text=${message}`, "_blank");
   };
 
   if (loading) {

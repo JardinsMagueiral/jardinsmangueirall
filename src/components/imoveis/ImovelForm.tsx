@@ -63,7 +63,7 @@ export function ImovelForm({ isAdmin = false, initialData, onSuccess }: ImovelFo
         `Olá! Acabei de cadastrar um imóvel (${savedImovelData.tipo} para ${savedImovelData.operacao}) no site Jardins Mangueiral. ` +
         `Endereço: ${savedImovelData.endereco}, ${savedImovelData.bairro}. Valor: R$ ${savedImovelData.preco.toLocaleString("pt-BR")}`
       );
-      window.open(`https://wa.me/5561981537063?text=${whatsappMessage}`, "_blank");
+      window.open(`https://wa.me/5561991647984?text=${whatsappMessage}`, "_blank");
     }
     setShowSuccessDialog(false);
     navigate("/minha-conta");

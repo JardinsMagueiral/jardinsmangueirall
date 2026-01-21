@@ -36,7 +36,7 @@ export function HeroSection() {
                 </Link>
               </Button>
               <Button size="lg" variant="whatsapp" asChild>
-                <a href="https://wa.me/5561981537063" target="_blank">
+                <a href="https://wa.me/5561991647984" target="_blank">
                   <MessageCircle className="mr-2 h-5 w-5" />
                   Fale Conosco
                 </a>

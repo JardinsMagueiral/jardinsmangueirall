@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { MessageCircle, Phone, MapPin, Heart } from "lucide-react";
+import { MessageCircle, Phone, MapPin, Heart, Mail, Instagram } from "lucide-react";
 import logo from "@/assets/logo.png";
 export function Footer() {
   return <footer className="border-t bg-primary text-primary-foreground">
@@ -43,8 +43,20 @@ export function Footer() {
             <ul className="space-y-3 text-sm">
               <li className="flex items-center gap-2 opacity-80">
                 <Phone className="h-4 w-4" />
-                <a href="https://wa.me/5561981537063" target="_blank" className="hover:opacity-100">
-                  +55 61 98153-7063
+                <a href="https://wa.me/5561991647984" target="_blank" className="hover:opacity-100">
+                  (61) 99164-7984
+                </a>
+              </li>
+              <li className="flex items-center gap-2 opacity-80">
+                <Mail className="h-4 w-4" />
+                <a href="mailto:luciananepomuceno@jardinsmangueiral.com" className="hover:opacity-100">
+                  luciananepomuceno@jardinsmangueiral.com
+                </a>
+              </li>
+              <li className="flex items-center gap-2 opacity-80">
+                <Instagram className="h-4 w-4" />
+                <a href="https://instagram.com/jardinsmangueiral" target="_blank" className="hover:opacity-100">
+                  @jardinsmangueiral
                 </a>
               </li>
               <li className="flex items-center gap-2 opacity-80">

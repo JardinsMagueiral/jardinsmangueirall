@@ -80,7 +80,7 @@ export function Header() {
             )
           )}
           <Button variant="whatsapp" size="sm" className="hidden sm:flex" asChild>
-            <a href="https://wa.me/5561981537063" target="_blank" rel="noopener noreferrer">
+            <a href="https://wa.me/5561991647984" target="_blank" rel="noopener noreferrer">
               <MessageCircle className="mr-2 h-4 w-4" />
               Fale Conosco
             </a>
@@ -123,7 +123,7 @@ export function Header() {
                   )
                 )}
                 <Button variant="whatsapp" className="mt-2" asChild>
-                  <a href="https://wa.me/5561981537063" target="_blank" rel="noopener noreferrer">
+                  <a href="https://wa.me/5561991647984" target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="mr-2 h-4 w-4" />
                     Fale Conosco
                   </a>
