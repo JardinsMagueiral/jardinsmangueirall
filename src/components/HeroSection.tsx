@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { PropertySearch } from "./PropertySearch";
 import { Button } from "@/components/ui/button";
 import { Building, MessageCircle } from "lucide-react";
@@ -29,10 +30,10 @@ export function HeroSection() {
             </p>
             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center lg:justify-start">
               <Button size="lg" variant="secondary" asChild>
-                <a href="https://wa.me/5561981537063?text=Olá! Quero cadastrar meu imóvel" target="_blank">
+                <Link to="/minha-conta/novo-imovel">
                   <Building className="mr-2 h-5 w-5" />
                   Cadastre seu Imóvel
-                </a>
+                </Link>
               </Button>
               <Button size="lg" variant="whatsapp" asChild>
                 <a href="https://wa.me/5561981537063" target="_blank">
