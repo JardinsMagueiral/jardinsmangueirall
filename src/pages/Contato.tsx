@@ -34,7 +34,7 @@ const Contato = () => {
                 </CardHeader>
                 <CardContent>
                   <Button variant="whatsapp" size="lg" className="w-full" asChild>
-                    <a href="https://wa.me/5561981537063" target="_blank" rel="noopener noreferrer">
+                    <a href="https://wa.me/5561991647984" target="_blank" rel="noopener noreferrer">
                       Enviar Mensagem
                     </a>
                   </Button>
@@ -52,7 +52,7 @@ const Contato = () => {
                 <CardContent>
                   <Button size="lg" className="w-full" asChild>
                     <a 
-                      href="https://wa.me/5561981537063?text=Olá! Gostaria de agendar uma visita" 
+                      href="https://wa.me/5561991647984?text=Olá! Gostaria de agendar uma visita" 
                       target="_blank" 
                       rel="noopener noreferrer"
                     >
@@ -74,7 +74,7 @@ const Contato = () => {
                   <div className="space-y-2 text-sm text-muted-foreground">
                     <div className="flex items-center justify-center gap-2">
                       <Phone className="h-4 w-4" />
-                      <span>+55 61 98153-7063</span>
+                      <span>(61) 99164-7984</span>
                     </div>
                     <div className="flex items-center justify-center gap-2">
                       <Clock className="h-4 w-4" />
