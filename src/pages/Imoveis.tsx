@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Building, MessageCircle, Key, Loader2, Bed, Bath, Car, Maximize, Search, Star } from "lucide-react";
+import { Building, MessageCircle, Key, Loader2, Bed, Bath, Car, Maximize, Search, Star, DollarSign } from "lucide-react";
 
 interface Imovel {
   id: string;
@@ -27,11 +27,16 @@ interface Imovel {
 }
 
 const Imoveis = () => {
+  const [searchParams] = useSearchParams();
   const [imoveis, setImoveis] = useState<Imovel[]>([]);
   const [loading, setLoading] = useState(true);
   const [tipoFilter, setTipoFilter] = useState("all");
   const [operacaoFilter, setOperacaoFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
+  const [precoMin, setPrecoMin] = useState(searchParams.get("precoMin") || "");
+  const [precoMax, setPrecoMax] = useState(searchParams.get("precoMax") || "");
+  const [quartosFilter, setQuartosFilter] = useState(searchParams.get("quartos") || "all");
+  const [banheirosFilter, setBanheirosFilter] = useState(searchParams.get("banheiros") || "all");
 
   useEffect(() => {
     fetchImoveis();
@@ -81,7 +86,13 @@ const Imoveis = () => {
     const matchesSearch = searchQuery === "" || 
       imovel.endereco.toLowerCase().includes(searchQuery.toLowerCase()) ||
       imovel.bairro.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesTipo && matchesOperacao && matchesSearch;
+    const matchesPrecoMin = !precoMin || imovel.preco >= Number(precoMin);
+    const matchesPrecoMax = !precoMax || imovel.preco <= Number(precoMax);
+    const matchesQuartos = quartosFilter === "all" || 
+      (quartosFilter === "4" ? imovel.quartos >= 4 : imovel.quartos === Number(quartosFilter));
+    const matchesBanheiros = banheirosFilter === "all" || 
+      (banheirosFilter === "3" ? imovel.banheiros >= 3 : imovel.banheiros === Number(banheirosFilter));
+    return matchesTipo && matchesOperacao && matchesSearch && matchesPrecoMin && matchesPrecoMax && matchesQuartos && matchesBanheiros;
   });
 
   return (
@@ -118,38 +129,90 @@ const Imoveis = () => {
           {/* Filters */}
           <section className="border-b py-6">
             <div className="container px-4">
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar por endereço ou bairro..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
+              <div className="flex flex-col gap-4">
+                {/* First row: Search and basic filters */}
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por endereço ou bairro..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Select value={tipoFilter} onValueChange={setTipoFilter}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os tipos</SelectItem>
+                      <SelectItem value="casa">Casa</SelectItem>
+                      <SelectItem value="apartamento">Apartamento</SelectItem>
+                      <SelectItem value="terreno">Terreno</SelectItem>
+                      <SelectItem value="comercial">Comercial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={operacaoFilter} onValueChange={setOperacaoFilter}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Operação" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Venda e Aluguel</SelectItem>
+                      <SelectItem value="venda">Venda</SelectItem>
+                      <SelectItem value="aluguel">Aluguel</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Select value={tipoFilter} onValueChange={setTipoFilter}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os tipos</SelectItem>
-                    <SelectItem value="casa">Casa</SelectItem>
-                    <SelectItem value="apartamento">Apartamento</SelectItem>
-                    <SelectItem value="terreno">Terreno</SelectItem>
-                    <SelectItem value="comercial">Comercial</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={operacaoFilter} onValueChange={setOperacaoFilter}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Operação" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Venda e Aluguel</SelectItem>
-                    <SelectItem value="venda">Venda</SelectItem>
-                    <SelectItem value="aluguel">Aluguel</SelectItem>
-                  </SelectContent>
-                </Select>
+                
+                {/* Second row: Price and room filters */}
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="relative w-40">
+                    <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Preço mín."
+                      value={precoMin}
+                      onChange={(e) => setPrecoMin(e.target.value)}
+                      className="pl-10"
+                      type="number"
+                    />
+                  </div>
+                  <div className="relative w-40">
+                    <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Preço máx."
+                      value={precoMax}
+                      onChange={(e) => setPrecoMax(e.target.value)}
+                      className="pl-10"
+                      type="number"
+                    />
+                  </div>
+                  <Select value={quartosFilter} onValueChange={setQuartosFilter}>
+                    <SelectTrigger className="w-36">
+                      <Bed className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <SelectValue placeholder="Quartos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="1">1 Quarto</SelectItem>
+                      <SelectItem value="2">2 Quartos</SelectItem>
+                      <SelectItem value="3">3 Quartos</SelectItem>
+                      <SelectItem value="4">4+ Quartos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={banheirosFilter} onValueChange={setBanheirosFilter}>
+                    <SelectTrigger className="w-36">
+                      <Bath className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <SelectValue placeholder="Banheiros" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="1">1 Banheiro</SelectItem>
+                      <SelectItem value="2">2 Banheiros</SelectItem>
+                      <SelectItem value="3">3+ Banheiros</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </section>

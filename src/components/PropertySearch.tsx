@@ -1,14 +1,27 @@
 import { useState } from "react";
-import { Search, DollarSign, Bed, Bath, MapPin } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Search, DollarSign, Bed, Bath } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function PropertySearch() {
-  const [search, setSearch] = useState("Jardins Mangueiral");
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [precoMin, setPrecoMin] = useState("");
+  const [precoMax, setPrecoMax] = useState("");
+  const [quartos, setQuartos] = useState("");
+  const [banheiros, setBanheiros] = useState("");
 
   const handleSearch = () => {
-    window.open("https://wa.me/5561981537063?text=" + encodeURIComponent(`Olá! Estou buscando um imóvel em ${search}. Pode me ajudar?`), "_blank");
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (precoMin) params.set("precoMin", precoMin);
+    if (precoMax) params.set("precoMax", precoMax);
+    if (quartos && quartos !== "all") params.set("quartos", quartos);
+    if (banheiros && banheiros !== "all") params.set("banheiros", banheiros);
+    
+    navigate(`/imoveis?${params.toString()}`);
   };
 
   return (
@@ -31,21 +44,34 @@ export function PropertySearch() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="relative">
             <DollarSign className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Valor mínimo" className="pl-10" type="number" />
+            <Input 
+              placeholder="Valor mínimo" 
+              className="pl-10" 
+              type="number" 
+              value={precoMin}
+              onChange={(e) => setPrecoMin(e.target.value)}
+            />
           </div>
           <div className="relative">
             <DollarSign className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Valor máximo" className="pl-10" type="number" />
+            <Input 
+              placeholder="Valor máximo" 
+              className="pl-10" 
+              type="number"
+              value={precoMax}
+              onChange={(e) => setPrecoMax(e.target.value)}
+            />
           </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Select>
+          <Select value={quartos} onValueChange={setQuartos}>
             <SelectTrigger>
               <Bed className="mr-2 h-5 w-5 text-muted-foreground" />
               <SelectValue placeholder="Quartos" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="1">1 Quarto</SelectItem>
               <SelectItem value="2">2 Quartos</SelectItem>
               <SelectItem value="3">3 Quartos</SelectItem>
@@ -53,12 +79,13 @@ export function PropertySearch() {
             </SelectContent>
           </Select>
 
-          <Select>
+          <Select value={banheiros} onValueChange={setBanheiros}>
             <SelectTrigger>
               <Bath className="mr-2 h-5 w-5 text-muted-foreground" />
               <SelectValue placeholder="Banheiros" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="1">1 Banheiro</SelectItem>
               <SelectItem value="2">2 Banheiros</SelectItem>
               <SelectItem value="3">3+ Banheiros</SelectItem>
@@ -66,13 +93,9 @@ export function PropertySearch() {
           </Select>
         </div>
 
-        <div className="relative">
-          <MapPin className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-          <Input defaultValue="Brasília - DF" className="pl-10" disabled />
-        </div>
-
-        <Button onClick={handleSearch} className="w-full" size="lg" variant="whatsapp">
-          Encontrar
+        <Button onClick={handleSearch} className="w-full" size="lg">
+          <Search className="mr-2 h-5 w-5" />
+          Buscar Imóveis
         </Button>
       </div>
     </div>
