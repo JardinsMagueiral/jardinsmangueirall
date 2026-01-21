@@ -73,7 +73,7 @@ export function Header() {
             <SheetContent side="right" className="w-80">
               <div className="flex flex-col gap-4 pt-8">
                 <Link to="/" className="flex items-center gap-2 pb-4" onClick={() => setIsOpen(false)}>
-                  <img src={logo} alt="Jardins Mangueiral" className="h-10 w-10 object-contain" />
+                  <img alt="Jardins Mangueiral" className="h-10 w-10 object-contain" src="/lovable-uploads/adaf769f-f696-4e5f-a43f-518d301799d2.png" />
                   <span className="font-serif text-lg font-semibold text-primary">
                     Jardins Mangueiral
                   </span>
