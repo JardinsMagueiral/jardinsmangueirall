@@ -12,8 +12,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, X, MessageCircle } from "lucide-react";
+import { Loader2, Upload, X, MessageCircle, CheckCircle } from "lucide-react";
 
 const imovelSchema = z.object({
   tipo: z.enum(["casa", "apartamento", "terreno", "comercial"]),
@@ -49,10 +50,24 @@ export function ImovelForm({ isAdmin = false, initialData, onSuccess }: ImovelFo
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [savedImovelData, setSavedImovelData] = useState<ImovelFormData | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const isEditing = !!initialData?.id;
+
+  const handleWhatsAppRedirect = () => {
+    if (savedImovelData) {
+      const whatsappMessage = encodeURIComponent(
+        `Olá! Acabei de cadastrar um imóvel (${savedImovelData.tipo} para ${savedImovelData.operacao}) no site Jardins Mangueiral. ` +
+        `Endereço: ${savedImovelData.endereco}, ${savedImovelData.bairro}. Valor: R$ ${savedImovelData.preco.toLocaleString("pt-BR")}`
+      );
+      window.open(`https://wa.me/5561981537063?text=${whatsappMessage}`, "_blank");
+    }
+    setShowSuccessDialog(false);
+    navigate("/minha-conta");
+  };
 
   const {
     register,
@@ -203,24 +218,21 @@ export function ImovelForm({ isAdmin = false, initialData, onSuccess }: ImovelFo
         setUploadingPhotos(false);
       }
 
-      toast({
-        title: isEditing ? "Imóvel atualizado!" : "Imóvel cadastrado!",
-        description: isAdmin 
-          ? "O imóvel foi publicado com sucesso" 
-          : "Seu imóvel foi enviado para aprovação",
-      });
-
       if (onSuccess) {
+        toast({
+          title: isEditing ? "Imóvel atualizado!" : "Imóvel cadastrado!",
+          description: "O imóvel foi salvo com sucesso",
+        });
         onSuccess();
       } else if (!isAdmin) {
-        // Redirect to WhatsApp
-        const whatsappMessage = encodeURIComponent(
-          `Olá! Acabei de cadastrar um imóvel (${data.tipo} para ${data.operacao}) no site Jardins Mangueiral. ` +
-          `Endereço: ${data.endereco}, ${data.bairro}. Valor: R$ ${data.preco.toLocaleString("pt-BR")}`
-        );
-        window.open(`https://wa.me/5561981537063?text=${whatsappMessage}`, "_blank");
-        navigate("/minha-conta");
+        // Show success dialog before WhatsApp redirect
+        setSavedImovelData(data);
+        setShowSuccessDialog(true);
       } else {
+        toast({
+          title: isEditing ? "Imóvel atualizado!" : "Imóvel publicado!",
+          description: "O imóvel foi publicado com sucesso",
+        });
         navigate("/admin/imoveis");
       }
     } catch (error) {
@@ -513,11 +525,32 @@ export function ImovelForm({ isAdmin = false, initialData, onSuccess }: ImovelFo
           ) : (
             <>
               {!isAdmin && <MessageCircle className="mr-2 h-4 w-4" />}
-              {isEditing ? "Salvar Alterações" : isAdmin ? "Publicar Imóvel" : "Cadastrar e Contatar via WhatsApp"}
+              {isEditing ? "Salvar Alterações" : isAdmin ? "Publicar Imóvel" : "Cadastrar Imóvel"}
             </>
           )}
         </Button>
       </div>
+
+      {/* Success Dialog */}
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent className="text-center sm:max-w-md">
+          <DialogHeader className="space-y-4">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+              <CheckCircle className="h-10 w-10 text-primary" />
+            </div>
+            <DialogTitle className="text-xl">Imóvel Cadastrado com Sucesso!</DialogTitle>
+            <DialogDescription className="text-base">
+              Seu imóvel foi enviado para aprovação. Agora você será direcionado para o WhatsApp para manter contato com nosso corretor.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 sm:justify-center">
+            <Button variant="whatsapp" onClick={handleWhatsAppRedirect} className="w-full sm:w-auto">
+              <MessageCircle className="mr-2 h-4 w-4" />
+              Ir para o WhatsApp
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }

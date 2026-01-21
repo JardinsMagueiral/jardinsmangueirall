@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Building, MessageCircle, Megaphone, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -8,13 +9,15 @@ const ctas = [
     description: "Junte-se aos nossos grupos de WhatsApp",
     link: "https://chat.whatsapp.com/GH1XuLDJfKP4be24ullSCD",
     variant: "whatsapp" as const,
+    isExternal: true,
   },
   {
     icon: Building,
     title: "Cadastre seu Imóvel",
     description: "Anuncie gratuitamente seu imóvel",
-    link: "https://wa.me/5561981537063?text=Olá! Quero cadastrar meu imóvel no site",
+    link: "/minha-conta/novo-imovel",
     variant: "default" as const,
+    isExternal: false,
   },
   {
     icon: Megaphone,
@@ -22,6 +25,7 @@ const ctas = [
     description: "Seja um parceiro local",
     link: "https://wa.me/5561981537063?text=Olá! Quero divulgar meu negócio local",
     variant: "secondary" as const,
+    isExternal: true,
   },
   {
     icon: ShoppingBag,
@@ -29,6 +33,7 @@ const ctas = [
     description: "Anuncie gratuitamente",
     link: "https://chat.whatsapp.com/LtNPTADfoSK24EjGsFubsp",
     variant: "outline" as const,
+    isExternal: true,
   },
 ];
 
@@ -48,9 +53,15 @@ export function CTASection() {
               <h3 className="mb-2 font-semibold text-foreground">{cta.title}</h3>
               <p className="mb-4 text-sm text-muted-foreground">{cta.description}</p>
               <Button variant={cta.variant} className="w-full" asChild>
-                <a href={cta.link} target="_blank" rel="noopener noreferrer">
-                  Acessar
-                </a>
+                {cta.isExternal ? (
+                  <a href={cta.link} target="_blank" rel="noopener noreferrer">
+                    Acessar
+                  </a>
+                ) : (
+                  <Link to={cta.link}>
+                    Acessar
+                  </Link>
+                )}
               </Button>
             </div>
           ))}
