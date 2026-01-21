@@ -4,26 +4,45 @@ import { Menu, X, Home, Users, Building, Handshake, MessageCircle, Phone, Calend
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import logo from "@/assets/logo.png";
-
-const menuItems = [
-  { label: "Início", href: "/", icon: Home },
-  { label: "Quem Somos", href: "/quem-somos", icon: Users },
-  { label: "Morar & Viver", href: "/imoveis", icon: Building },
-  { label: "Comunidade", href: "/comunidade", icon: Users },
-  { label: "Parceiros", href: "/parceiros", icon: Handshake },
-  { label: "Grupos WhatsApp", href: "/grupos", icon: MessageCircle },
-  { label: "Eventos", href: "/eventos", icon: Calendar },
-  { label: "Contato", href: "/contato", icon: Phone },
-];
-
+const menuItems = [{
+  label: "Início",
+  href: "/",
+  icon: Home
+}, {
+  label: "Quem Somos",
+  href: "/quem-somos",
+  icon: Users
+}, {
+  label: "Morar & Viver",
+  href: "/imoveis",
+  icon: Building
+}, {
+  label: "Comunidade",
+  href: "/comunidade",
+  icon: Users
+}, {
+  label: "Parceiros",
+  href: "/parceiros",
+  icon: Handshake
+}, {
+  label: "Grupos WhatsApp",
+  href: "/grupos",
+  icon: MessageCircle
+}, {
+  label: "Eventos",
+  href: "/eventos",
+  icon: Calendar
+}, {
+  label: "Contato",
+  href: "/contato",
+  icon: Phone
+}];
 export function Header() {
   const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+  return <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container flex h-16 items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2">
-          <img src={logo} alt="Jardins Mangueiral" className="h-12 w-12 object-contain" />
+          <img alt="Jardins Mangueiral" className="h-12 w-12 object-contain" src="/lovable-uploads/c352527c-9283-4afd-b086-50871a8bc0ee.png" />
           <span className="hidden font-serif text-lg font-semibold text-primary sm:inline-block">
             Jardins Mangueiral
           </span>
@@ -31,15 +50,9 @@ export function Header() {
 
         {/* Desktop Navigation */}
         <nav className="hidden items-center gap-1 lg:flex">
-          {menuItems.map((item) => (
-            <Link
-              key={item.href}
-              to={item.href}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary"
-            >
+          {menuItems.map(item => <Link key={item.href} to={item.href} className="rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary">
               {item.label}
-            </Link>
-          ))}
+            </Link>)}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -65,17 +78,10 @@ export function Header() {
                     Jardins Mangueiral
                   </span>
                 </Link>
-                {menuItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    onClick={() => setIsOpen(false)}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-foreground/80 transition-colors hover:bg-secondary hover:text-primary"
-                  >
+                {menuItems.map(item => <Link key={item.href} to={item.href} onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-foreground/80 transition-colors hover:bg-secondary hover:text-primary">
                     <item.icon className="h-5 w-5" />
                     {item.label}
-                  </Link>
-                ))}
+                  </Link>)}
                 <Button variant="whatsapp" className="mt-4" asChild>
                   <a href="https://wa.me/5561981537063" target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="mr-2 h-4 w-4" />
@@ -87,6 +93,5 @@ export function Header() {
           </Sheet>
         </div>
       </div>
-    </header>
-  );
+    </header>;
 }
