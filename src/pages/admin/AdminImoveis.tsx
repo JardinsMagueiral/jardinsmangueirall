@@ -53,32 +53,53 @@ export default function AdminImoveis() {
 
   const fetchImoveis = async () => {
     try {
-      console.log("Fetching imoveis...");
+      console.log("AdminImoveis: Fetching imoveis...");
 
-      // Verify current session
+      // Verificar sessao atual
       const { data: { session } } = await supabase.auth.getSession();
       console.log("Current session user:", session?.user?.id);
 
-      const { data, error } = await supabase
+      // 1. Buscar imoveis primeiro (sem JOIN)
+      const { data: imoveisData, error: imoveisError } = await supabase
         .from("imoveis")
-        .select(`
-          *,
-          profiles:user_id (
-            nome,
-            email,
-            telefone
-          )
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
-      console.log("Imoveis result:", { data, error, count: data?.length });
+      console.log("Imoveis result:", { data: imoveisData, error: imoveisError, count: imoveisData?.length });
 
-      if (error) {
-        console.error("Supabase error:", error);
-        throw error;
+      if (imoveisError) {
+        console.error("Supabase error fetching imoveis:", imoveisError);
+        throw imoveisError;
       }
 
-      setImoveis((data as unknown as Imovel[]) || []);
+      if (!imoveisData || imoveisData.length === 0) {
+        console.log("No imoveis found");
+        setImoveis([]);
+        return;
+      }
+
+      // 2. Buscar profiles dos proprietarios
+      const userIds = [...new Set(imoveisData.map(i => i.user_id))];
+      console.log("Fetching profiles for user_ids:", userIds);
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, nome, email, telefone")
+        .in("id", userIds);
+
+      console.log("Profiles result:", { data: profilesData, error: profilesError });
+
+      // 3. Combinar dados (mesmo se profiles falhar, ainda mostra imoveis)
+      const profilesMap = new Map(
+        (profilesData || []).map(p => [p.id, p])
+      );
+
+      const imoveisComProfiles = imoveisData.map(imovel => ({
+        ...imovel,
+        profiles: profilesMap.get(imovel.user_id) || null
+      }));
+
+      setImoveis(imoveisComProfiles as Imovel[]);
     } catch (error) {
       console.error("Error fetching imoveis:", error);
     } finally {
