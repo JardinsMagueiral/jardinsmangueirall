@@ -31,10 +31,6 @@ interface Imovel {
   status: string;
   destaque: boolean;
   created_at: string;
-  profiles: {
-    nome: string;
-    telefone: string;
-  } | null;
 }
 
 interface Foto {
@@ -61,18 +57,13 @@ export default function ImovelDetalhe() {
     try {
       const { data, error } = await supabase
         .from("imoveis")
-        .select(`
-          *,
-          profiles:user_id (
-            nome,
-            telefone
-          )
-        `)
+        .select("*")
         .eq("id", id)
-        .single();
+        .eq("status", "aprovado")
+        .maybeSingle();
 
       if (error) throw error;
-      setImovel(data as unknown as Imovel);
+      setImovel(data as Imovel | null);
     } catch (error) {
       console.error("Error fetching imovel:", error);
     } finally {
