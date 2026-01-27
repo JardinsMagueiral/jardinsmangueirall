@@ -47,11 +47,13 @@ export default function AdminImoveis() {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log("AdminImoveis mounted, fetching...");
     fetchImoveis();
   }, []);
 
   const fetchImoveis = async () => {
     try {
+      console.log("Fetching imoveis...");
       const { data, error } = await supabase
         .from("imoveis")
         .select(`
@@ -64,6 +66,7 @@ export default function AdminImoveis() {
         `)
         .order("created_at", { ascending: false });
 
+      console.log("Imoveis result:", { data, error });
       if (error) throw error;
       setImoveis((data as unknown as Imovel[]) || []);
     } catch (error) {
