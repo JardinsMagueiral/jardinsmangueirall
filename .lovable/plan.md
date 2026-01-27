@@ -1,129 +1,143 @@
 
 
-## Plano: Corrigir Acesso de Administrador aos Imoveis
+## Plano: Corrigir Acesso Admin e Carregamento de Imoveis
 
-### Diagnostico Completo
+### Problemas Identificados
 
-Apos investigacao extensiva, confirmei que:
+Apos investigacao detalhada, encontrei **dois problemas**:
 
-| Item | Status | Detalhe |
-|------|--------|---------|
-| Politicas RLS | OK | Todas sao PERMISSIVE e funcionando |
-| Role admin | OK | `rodrigoperes.adm@gmail.com` tem role admin |
-| Funcao has_role | OK | Retorna `true` para o usuario admin |
-| Imoveis no banco | OK | Existem 2 imoveis com status `pendente` |
-| Login recente | OK | Login bem sucedido as 16:51:25 |
-
-**O banco de dados esta 100% correto.**
+| Problema | Descricao | Impacto |
+|----------|-----------|---------|
+| Race Condition no AuthContext | O `onAuthStateChange` usa `setTimeout` com async callback que nao e aguardado antes de `setLoading(false)` | Admin pode ser redirecionado antes de `isAdmin` ser verificado |
+| Falta de Foreign Key | A tabela `imoveis` nao tem FK para `profiles`, entao a sintaxe `profiles:user_id` do Supabase nao funciona | Query retorna array vazio ou dados incompletos |
 
 ---
 
-### Problema Identificado
+### Solucao 1: Corrigir Race Condition no AuthContext
 
-O problema esta no **codigo frontend** - especificamente no `AuthContext.tsx`:
+**Arquivo**: `src/contexts/AuthContext.tsx`
 
-**Race Condition no carregamento:**
+O problema esta nas linhas 77-88:
+
 ```typescript
-// Problema: setLoading(false) pode executar ANTES de checkAdminRole terminar
+// PROBLEMA: setTimeout com callback async nao e aguardado
 if (session?.user) {
-  fetchProfile(session.user.id);    // async, nao aguarda
-  checkAdminRole(session.user.id);  // async, nao aguarda
+  setTimeout(async () => {
+    await fetchProfile(session.user.id);
+    await checkAdminRole(session.user.id);
+  }, 0);
+} else {
+  setProfile(null);
+  setIsAdmin(false);
 }
-setLoading(false);  // <-- Executa imediatamente!
+
+setLoading(false);  // Executa ANTES do setTimeout terminar!
 ```
 
-O `ProtectedRoute` verifica `loading` e `isAdmin`. Quando `loading = false` mas `isAdmin` ainda nao foi setado (porque a promise ainda esta pendente), o usuario e redirecionado para `/minha-conta`.
+**Correcao**: Mover `setLoading(false)` para dentro do callback ou usar uma abordagem diferente:
+
+```typescript
+if (session?.user) {
+  // Usar setTimeout para evitar deadlock, mas setar loading dentro
+  setTimeout(async () => {
+    await fetchProfile(session.user.id);
+    await checkAdminRole(session.user.id);
+    setLoading(false);  // Agora e executado APOS as verificacoes
+  }, 0);
+} else {
+  setProfile(null);
+  setIsAdmin(false);
+  setLoading(false);  // So seta loading quando nao ha usuario
+}
+```
 
 ---
 
-### Solucao Proposta
+### Solucao 2: Adicionar Foreign Key entre imoveis e profiles
 
-**1. Corrigir AuthContext.tsx - Aguardar verificacoes antes de setar loading**
+**Tipo**: Migracao SQL
 
-```typescript
-// ANTES (problema)
-supabase.auth.getSession().then(({ data: { session } }) => {
-  setSession(session);
-  setUser(session?.user ?? null);
-  
-  if (session?.user) {
-    fetchProfile(session.user.id);
-    checkAdminRole(session.user.id);
-  }
-  
-  setLoading(false);  // Race condition!
-});
-
-// DEPOIS (correcao)
-supabase.auth.getSession().then(async ({ data: { session } }) => {
-  setSession(session);
-  setUser(session?.user ?? null);
-  
-  if (session?.user) {
-    await Promise.all([
-      fetchProfile(session.user.id),
-      checkAdminRole(session.user.id)
-    ]);
-  }
-  
-  setLoading(false);  // Agora aguarda as verificacoes
-});
+```sql
+ALTER TABLE public.imoveis
+ADD CONSTRAINT imoveis_user_id_fkey
+FOREIGN KEY (user_id) REFERENCES public.profiles(id);
 ```
 
-**2. Adicionar logs de debug temporarios no AdminImoveis**
-
-Para confirmar que o problema foi resolvido:
+Isso permite que o Supabase client use a sintaxe:
 ```typescript
-useEffect(() => {
-  console.log("AdminImoveis mounted, fetching...");
-  fetchImoveis();
-}, []);
+.select(`*, profiles:user_id (nome, email, telefone)`)
+```
 
+---
+
+### Solucao Alternativa para Query (caso FK nao seja desejavel)
+
+Se preferir nao adicionar a FK, podemos modificar a query no `AdminImoveis.tsx` para buscar os dados separadamente:
+
+```typescript
 const fetchImoveis = async () => {
   try {
-    console.log("Fetching imoveis...");
-    const { data, error } = await supabase...
-    console.log("Imoveis result:", { data, error });
-    // ...
+    // Buscar imoveis primeiro
+    const { data: imoveisData, error: imoveisError } = await supabase
+      .from("imoveis")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (imoveisError) throw imoveisError;
+
+    // Buscar profiles dos users
+    const userIds = [...new Set(imoveisData?.map(i => i.user_id) || [])];
+    const { data: profilesData } = await supabase
+      .from("profiles")
+      .select("id, nome, email, telefone")
+      .in("id", userIds);
+
+    // Combinar dados
+    const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+    const imoveisComProfiles = imoveisData?.map(imovel => ({
+      ...imovel,
+      profiles: profilesMap.get(imovel.user_id) || null
+    })) || [];
+
+    setImoveis(imoveisComProfiles as Imovel[]);
+  } catch (error) {
+    console.error("Error fetching imoveis:", error);
+  } finally {
+    setLoading(false);
   }
 };
 ```
 
-**3. Adicionar foreign key entre imoveis e profiles (opcional)**
-
-Para garantir que o JOIN funcione corretamente:
-```sql
-ALTER TABLE public.imoveis
-ADD CONSTRAINT imoveis_user_id_profiles_fkey
-FOREIGN KEY (user_id) REFERENCES public.profiles(id);
-```
-
-Nota: Isso pode conflitar com a FK existente para `auth.users`. Uma alternativa e mudar a query para fazer o JOIN manualmente.
-
 ---
 
-### Arquivos a Modificar
+### Resumo das Alteracoes
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/contexts/AuthContext.tsx` | Corrigir race condition com `await Promise.all()` |
-| `src/pages/admin/AdminImoveis.tsx` | Adicionar logs temporarios para debug |
+| `src/contexts/AuthContext.tsx` | Mover `setLoading(false)` para dentro do setTimeout ou condicional |
+| **Opcao A**: Migracao SQL | Adicionar FK `imoveis.user_id` -> `profiles.id` |
+| **Opcao B**: `src/pages/admin/AdminImoveis.tsx` | Modificar query para buscar dados separadamente |
 
 ---
 
-### Resultado Esperado
+### Recomendacao
 
-1. Admin logado acessa `/admin/imoveis` sem ser redirecionado
-2. Todos os imoveis (pendentes, aprovados, rejeitados) aparecem na lista
-3. Admin pode aprovar/rejeitar/excluir imoveis normalmente
+Recomendo implementar:
+1. **Correcao do AuthContext** (obrigatorio)
+2. **Adicionar a Foreign Key** (preferivel, mais simples e correto)
+
+Isso vai resolver:
+- O problema de redirecionamento do admin
+- O problema de imoveis nao aparecerem
+- Vai permitir que os dados do anunciante aparecam corretamente
 
 ---
 
-### Nota sobre Teste
+### Passos de Teste
 
-Apos implementar as mudancas:
-1. Faca logout completo
-2. Limpe o cache do navegador (Ctrl+Shift+Delete)
-3. Faca login novamente com `rodrigoperes.adm@gmail.com`
-4. Acesse `/admin/imoveis`
+1. Fazer logout completo
+2. Limpar cache do navegador
+3. Fazer login com `rodrigoperes.adm@gmail.com`
+4. Acessar `/admin/imoveis`
+5. Verificar se o imovel pendente aparece
 
