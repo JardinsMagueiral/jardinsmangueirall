@@ -1,35 +1,48 @@
 
-
-## Plano: Otimizar Performance do Login
+## Plano: Corrigir Bug de Login Travando
 
 ### Problema Identificado
 
-O login está lento porque:
+A otimização anterior introduziu um bug:
 
-1. **Chamadas sequenciais**: `fetchProfile` e `checkAdminRole` são executadas uma após a outra (await + await), dobrando o tempo de espera
-2. **Chamadas duplicadas**: Quando o usuário faz login, tanto `getSession()` quanto `onAuthStateChange` (evento SIGNED_IN) executam `initializeAuth`, resultando em 4 queries ao banco ao invés de 2
+```typescript
+let isInitializing = false;
+
+const initializeAuth = async (session: Session | null) => {
+  if (!mounted || isInitializing) return;  // ← PROBLEMA AQUI
+  isInitializing = true;
+  // ...
+  isInitializing = false;
+};
+```
+
+**O que acontece**:
+1. Usuário clica em "Entrar"
+2. Login bem-sucedido no backend
+3. `onAuthStateChange` dispara evento `SIGNED_IN` com nova sessão
+4. Mas se `isInitializing = true` (de uma chamada anterior ainda em andamento), a função **retorna sem processar**
+5. `loading` nunca vira `false` → tela trava
 
 ### Solução
 
-1. **Executar queries em paralelo** usando `Promise.all()`
-2. **Evitar duplicação** verificando se já está inicializando
+Remover a flag `isInitializing` e usar uma abordagem diferente:
+- Usar `setTimeout(..., 0)` no `onAuthStateChange` para defer a execução e evitar conflito com chamadas síncronas do Supabase
+- Manter as queries em paralelo (essa otimização está correta)
 
-### Mudanças Propostas
+### Mudanças
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/contexts/AuthContext.tsx` | Otimizar com Promise.all e evitar duplicação |
+| `src/contexts/AuthContext.tsx` | Remover `isInitializing` e usar `setTimeout` para eventos de auth |
 
-### Código Otimizado
+### Código Corrigido
 
 ```typescript
 useEffect(() => {
   let mounted = true;
-  let isInitializing = false; // Flag para evitar duplicação
 
   const initializeAuth = async (session: Session | null) => {
-    if (!mounted || isInitializing) return;
-    isInitializing = true;
+    if (!mounted) return;
 
     setSession(session);
     setUser(session?.user ?? null);
@@ -48,18 +61,22 @@ useEffect(() => {
     if (mounted) {
       setLoading(false);
     }
-    isInitializing = false;
   };
 
+  // Set up auth state listener FIRST
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
     async (event, session) => {
-      // Ignorar INITIAL_SESSION pois getSession() já trata
+      // Ignore INITIAL_SESSION as getSession() handles it
       if (event === 'INITIAL_SESSION') return;
-      
-      await initializeAuth(session);
+
+      // Usar setTimeout para evitar conflitos com chamadas síncronas
+      setTimeout(() => {
+        initializeAuth(session);
+      }, 0);
     }
   );
 
+  // THEN get initial session
   supabase.auth.getSession().then(({ data: { session } }) => {
     initializeAuth(session);
   });
@@ -71,17 +88,15 @@ useEffect(() => {
 }, []);
 ```
 
-### Benefícios
+### Por que isso funciona?
 
-| Antes | Depois |
-|-------|--------|
-| fetchProfile → aguarda → checkAdminRole | fetchProfile + checkAdminRole (simultâneo) |
-| ~400-600ms total | ~200-300ms total |
-| Possível duplicação de chamadas | Proteção contra duplicação |
+1. **Sem flag bloqueadora**: Remove `isInitializing` que estava causando o bloqueio
+2. **setTimeout(0)**: Coloca a execução no próximo tick do event loop, evitando que `onAuthStateChange` e `getSession` colidam
+3. **Mounted check**: Ainda protege contra memory leaks se o componente desmontar
+4. **Queries paralelas**: Mantém a otimização de performance
 
 ### Resultado Esperado
 
-- Login aproximadamente **2x mais rápido**
-- Sem chamadas duplicadas ao banco de dados
-- Mesma funcionalidade mantida
-
+- Login volta a funcionar normalmente
+- Performance mantida (queries paralelas)
+- Sem bloqueio na inicialização
