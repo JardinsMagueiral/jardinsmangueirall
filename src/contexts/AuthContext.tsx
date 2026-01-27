@@ -69,11 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    let isInitializing = false;
 
     const initializeAuth = async (session: Session | null) => {
-      if (!mounted || isInitializing) return;
-      isInitializing = true;
+      if (!mounted) return;
 
       setSession(session);
       setUser(session?.user ?? null);
@@ -92,7 +90,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (mounted) {
         setLoading(false);
       }
-      isInitializing = false;
     };
 
     // Set up auth state listener FIRST
@@ -101,7 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Ignore INITIAL_SESSION as getSession() handles it
         if (event === 'INITIAL_SESSION') return;
 
-        await initializeAuth(session);
+        // Usar setTimeout para evitar conflitos com chamadas síncronas
+        setTimeout(() => {
+          initializeAuth(session);
+        }, 0);
       }
     );
 
