@@ -42,17 +42,25 @@ const imovelSchema = z.object({
 
 type ImovelFormData = z.infer<typeof imovelSchema>;
 
+interface ExistingPhoto {
+  id: string;
+  url: string;
+}
+
 interface ImovelFormProps {
   isAdmin?: boolean;
   initialData?: Partial<ImovelFormData> & { id?: string };
+  existingPhotos?: ExistingPhoto[];
   onSuccess?: () => void;
 }
 
-export function ImovelForm({ isAdmin = false, initialData, onSuccess }: ImovelFormProps) {
+export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initialExistingPhotos = [], onSuccess }: ImovelFormProps) {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [existingPhotos, setExistingPhotos] = useState<ExistingPhoto[]>(initialExistingPhotos);
+  const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [savedImovelData, setSavedImovelData] = useState<ImovelFormData | null>(null);
@@ -102,14 +110,16 @@ export function ImovelForm({ isAdmin = false, initialData, onSuccess }: ImovelFo
     },
   });
 
+  const totalPhotosCount = existingPhotos.length + photos.length;
+
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     
-    // Validate total number of photos
-    if (photos.length + files.length > 10) {
+    // Validate total number of photos (existing + new)
+    if (totalPhotosCount + files.length > 10) {
       toast({
         title: "Limite de fotos",
-        description: "Você pode enviar no máximo 10 fotos",
+        description: `Você pode ter no máximo 10 fotos (${existingPhotos.length} existentes + ${10 - existingPhotos.length} novas)`,
         variant: "destructive",
       });
       return;
@@ -144,6 +154,54 @@ export function ImovelForm({ isAdmin = false, initialData, onSuccess }: ImovelFo
     // Create preview URLs
     const newUrls = validFiles.map((file) => URL.createObjectURL(file));
     setPhotoUrls([...photoUrls, ...newUrls]);
+  };
+
+  const removeNewPhoto = (index: number) => {
+    const newPhotos = [...photos];
+    const newUrls = [...photoUrls];
+    
+    URL.revokeObjectURL(newUrls[index]);
+    newPhotos.splice(index, 1);
+    newUrls.splice(index, 1);
+    
+    setPhotos(newPhotos);
+    setPhotoUrls(newUrls);
+  };
+
+  const deleteExistingPhoto = async (photoId: string, photoUrl: string) => {
+    setDeletingPhotoId(photoId);
+    try {
+      // Extract path from URL to delete from storage
+      const urlParts = photoUrl.split("/storage/v1/object/public/imoveis/");
+      if (urlParts.length > 1) {
+        const filePath = urlParts[1];
+        await supabase.storage.from("imoveis").remove([filePath]);
+      }
+
+      // Delete from database
+      const { error } = await supabase
+        .from("imovel_fotos")
+        .delete()
+        .eq("id", photoId);
+
+      if (error) throw error;
+
+      // Update local state
+      setExistingPhotos(existingPhotos.filter(p => p.id !== photoId));
+      
+      toast({
+        title: "Foto removida",
+        description: "A foto foi removida com sucesso",
+      });
+    } catch {
+      toast({
+        title: "Erro",
+        description: "Não foi possível remover a foto",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingPhotoId(null);
+    }
   };
 
   const removePhoto = (index: number) => {
@@ -491,11 +549,46 @@ export function ImovelForm({ isAdmin = false, initialData, onSuccess }: ImovelFo
         <CardHeader>
           <CardTitle>Fotos</CardTitle>
           <CardDescription>
-            Adicione até 10 fotos do imóvel
+            Adicione até 10 fotos do imóvel ({totalPhotosCount}/10)
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            {/* Existing Photos */}
+            {existingPhotos.length > 0 && (
+              <div>
+                <p className="mb-2 text-sm font-medium text-muted-foreground">
+                  Fotos existentes ({existingPhotos.length})
+                </p>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+                  {existingPhotos.map((photo) => (
+                    <div key={photo.id} className="relative aspect-square">
+                      <img
+                        src={photo.url}
+                        alt="Foto do imóvel"
+                        className="h-full w-full rounded-lg object-cover"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -right-2 -top-2 h-6 w-6"
+                        onClick={() => deleteExistingPhoto(photo.id, photo.url)}
+                        disabled={deletingPhotoId === photo.id}
+                      >
+                        {deletingPhotoId === photo.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <X className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Add New Photos */}
             <div className="flex items-center gap-4">
               <Input
                 type="file"
@@ -509,33 +602,39 @@ export function ImovelForm({ isAdmin = false, initialData, onSuccess }: ImovelFo
                 type="button"
                 variant="outline"
                 onClick={() => document.getElementById("photos")?.click()}
-                disabled={photos.length >= 10}
+                disabled={totalPhotosCount >= 10}
               >
                 <Upload className="mr-2 h-4 w-4" />
-                Adicionar Fotos ({photos.length}/10)
+                Adicionar Novas Fotos
               </Button>
             </div>
 
+            {/* New Photos Preview */}
             {photoUrls.length > 0 && (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-                {photoUrls.map((url, index) => (
-                  <div key={index} className="relative aspect-square">
-                    <img
-                      src={url}
-                      alt={`Foto ${index + 1}`}
-                      className="h-full w-full rounded-lg object-cover"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute -right-2 -top-2 h-6 w-6"
-                      onClick={() => removePhoto(index)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+              <div>
+                <p className="mb-2 text-sm font-medium text-muted-foreground">
+                  Novas fotos ({photoUrls.length})
+                </p>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+                  {photoUrls.map((url, index) => (
+                    <div key={index} className="relative aspect-square">
+                      <img
+                        src={url}
+                        alt={`Nova foto ${index + 1}`}
+                        className="h-full w-full rounded-lg object-cover"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -right-2 -top-2 h-6 w-6"
+                        onClick={() => removePhoto(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

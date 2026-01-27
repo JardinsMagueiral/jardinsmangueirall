@@ -34,6 +34,7 @@ import NovoImovel from "./pages/cliente/NovoImovel";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminImoveis from "./pages/admin/AdminImoveis";
 import AdminNovoImovel from "./pages/admin/AdminNovoImovel";
+import AdminEditarImovel from "./pages/admin/AdminEditarImovel";
 import AdminEventos from "./pages/admin/AdminEventos";
 
 const queryClient = new QueryClient();
@@ -105,6 +106,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requireAdmin>
                     <AdminNovoImovel />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/imoveis/:id/editar"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminEditarImovel />
                   </ProtectedRoute>
                 }
               />

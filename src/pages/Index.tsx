@@ -1,6 +1,7 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { HeroSection } from "@/components/HeroSection";
+import { FeaturedProperties } from "@/components/FeaturedProperties";
 import { WhatsAppGroups } from "@/components/WhatsAppGroups";
 import { CTASection } from "@/components/CTASection";
 import { EventsCalendar } from "@/components/EventsCalendar";
@@ -20,6 +21,7 @@ const Index = () => {
         <Header />
         <main className="flex-1">
           <HeroSection />
+          <FeaturedProperties />
           <WhatsAppGroups />
           <CTASection />
           <EventsCalendar />

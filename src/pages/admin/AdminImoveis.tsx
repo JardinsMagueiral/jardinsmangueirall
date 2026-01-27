@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Check, X, Trash2, Eye, Star, StarOff } from "lucide-react";
+import { Loader2, ArrowLeft, Check, X, Trash2, Eye, Star, StarOff, Pencil } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -308,6 +308,13 @@ export default function AdminImoveis() {
                                 Destacar
                               </>
                             )}
+                          </Button>
+
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/admin/imoveis/${imovel.id}/editar`}>
+                              <Pencil className="mr-1 h-4 w-4" />
+                              Editar
+                            </Link>
                           </Button>
 
                           <Button variant="outline" size="sm" asChild>
