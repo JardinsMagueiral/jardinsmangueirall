@@ -68,44 +68,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let mounted = true;
+
+    const initializeAuth = async (session: Session | null) => {
+      if (!mounted) return;
+
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        await fetchProfile(session.user.id);
+        await checkAdminRole(session.user.id);
+      } else {
+        setProfile(null);
+        setIsAdmin(false);
+      }
+
+      if (mounted) {
+        setLoading(false);
+      }
+    };
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+        // Ignore INITIAL_SESSION as getSession() handles it
+        if (event === 'INITIAL_SESSION') return;
 
-        if (session?.user) {
-          // Use setTimeout to avoid Supabase auth deadlock
-          // IMPORTANT: setLoading(false) must be inside the callback
-          setTimeout(async () => {
-            await fetchProfile(session.user.id);
-            await checkAdminRole(session.user.id);
-            setLoading(false);
-          }, 0);
-        } else {
-          setProfile(null);
-          setIsAdmin(false);
-          setLoading(false);
-        }
+        await initializeAuth(session);
       }
     );
 
     // THEN get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await Promise.all([
-          fetchProfile(session.user.id),
-          checkAdminRole(session.user.id)
-        ]);
-      }
-      
-      setLoading(false);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      initializeAuth(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {

@@ -54,6 +54,11 @@ export default function AdminImoveis() {
   const fetchImoveis = async () => {
     try {
       console.log("Fetching imoveis...");
+
+      // Verify current session
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("Current session user:", session?.user?.id);
+
       const { data, error } = await supabase
         .from("imoveis")
         .select(`
@@ -66,8 +71,13 @@ export default function AdminImoveis() {
         `)
         .order("created_at", { ascending: false });
 
-      console.log("Imoveis result:", { data, error });
-      if (error) throw error;
+      console.log("Imoveis result:", { data, error, count: data?.length });
+
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+
       setImoveis((data as unknown as Imovel[]) || []);
     } catch (error) {
       console.error("Error fetching imoveis:", error);
