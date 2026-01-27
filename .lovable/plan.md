@@ -1,58 +1,137 @@
 
-## Plano: Atualizar Favicon e Meta Tags
+## Plano: Melhorias de Segurança
 
-### O que será feito
+### Resumo dos Problemas Encontrados
 
-Vou usar a logo que você enviou como favicon (ícone na aba do navegador) e também atualizar o título e descrições do site.
+| Prioridade | Problema | Risco |
+|------------|----------|-------|
+| Alta | Upload de fotos sem validação | Arquivos maliciosos podem ser enviados |
+| Alta | Exposição do user_id em imóveis públicos | Permite rastrear proprietários |
+| Média | Console.log em produção | Expõe detalhes internos |
+| Média | Proteção de senha vazada desabilitada | Senhas comprometidas podem ser usadas |
+| Baixa | Bucket de storage público | Todas as fotos são acessíveis |
 
-### Mudanças
+### Correções Propostas
 
-**1. Copiar a imagem para a pasta pública**
-- Copiar `user-uploads://ChatGPT_Image_21_de_jan._de_2026_12_03_48.png` para `public/favicon.png`
+#### 1. Validação de Upload de Fotos (ImovelForm.tsx)
 
-**2. Atualizar o arquivo `index.html`**
+Adicionar validação no cliente para:
+- Tamanho máximo de 5MB por arquivo
+- Tipo de arquivo (apenas imagens JPEG, PNG, WebP)
+- Verificação do MIME type
 
-| Item | Antes | Depois |
-|------|-------|--------|
-| Favicon | Nenhum definido | Sua logo |
-| Título | "Lovable App" | "Jardins Mangueiral" |
-| Descrição | "Lovable Generated Project" | "Conectando vizinhos e fortalecendo comunidades no Jardins Mangueiral" |
-| OG Title | "Lovable App" | "Jardins Mangueiral" |
-| OG Description | "Lovable Generated Project" | "Conectando vizinhos e fortalecendo comunidades no Jardins Mangueiral" |
-| Idioma | "en" | "pt-BR" |
+```typescript
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-### Código Final do index.html
-
-```html
-<!doctype html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="/favicon.png" type="image/png" />
-    <title>Jardins Mangueiral</title>
-    <meta name="description" content="Conectando vizinhos e fortalecendo comunidades no Jardins Mangueiral. Encontre imóveis, eventos e serviços locais." />
-    <meta name="author" content="Jardins Mangueiral" />
-
-    <meta property="og:title" content="Jardins Mangueiral" />
-    <meta property="og:description" content="Conectando vizinhos e fortalecendo comunidades no Jardins Mangueiral" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="/favicon.png" />
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@JardinsMangueiral" />
-    <meta name="twitter:image" content="/favicon.png" />
-  </head>
-
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const files = Array.from(e.target.files || []);
+  
+  // Validar cada arquivo
+  for (const file of files) {
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: "Arquivo muito grande",
+        description: `${file.name} excede o limite de 5MB`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast({
+        title: "Tipo de arquivo inválido",
+        description: `${file.name} não é uma imagem válida (use JPEG, PNG ou WebP)`,
+        variant: "destructive",
+      });
+      return;
+    }
+  }
+  
+  // ... resto da lógica
+};
 ```
 
-### Resultado
+#### 2. Criar View Pública para Imóveis (Banco de Dados)
 
-- A aba do navegador mostrará sua logo da árvore
-- O título "Jardins Mangueiral" aparecerá na aba
-- Links compartilhados em redes sociais mostrarão informações corretas
+Criar uma view que exclui o `user_id` para consultas públicas:
+
+```sql
+-- View pública para imóveis aprovados (sem user_id)
+CREATE VIEW public.imoveis_publicos
+WITH (security_invoker=on) AS
+  SELECT 
+    id, tipo, operacao, endereco, numero, complemento, 
+    bairro, cep, quartos, banheiros, vagas, area_m2,
+    preco, condominio, iptu, descricao, mobiliado, 
+    aceita_pets, destaque, created_at
+  FROM public.imoveis
+  WHERE status = 'aprovado';
+
+-- Política para a view
+CREATE POLICY "Anyone can view public properties"
+  ON public.imoveis_publicos FOR SELECT
+  USING (true);
+```
+
+**Nota**: Após análise, esta abordagem é complexa porque views com RLS requerem configurações adicionais. Uma alternativa mais simples é simplesmente não incluir `user_id` nas consultas do frontend para páginas públicas (que já foi feito em `ImovelDetalhe.tsx`).
+
+#### 3. Remover Console.log de Produção
+
+Modificar os seguintes arquivos para usar logging condicional:
+
+**AdminImoveis.tsx** - Remover todos os console.log/console.error:
+- Linha 50, 56, 60, 68, 76, 83, 90, 104
+
+**MinhaConta.tsx** - Remover console.error:
+- Linha 60
+
+**ImovelDetalhe.tsx** - Remover console.error:
+- Linha 68, 85
+
+**AuthContext.tsx** - Remover console.error:
+- Linha 44
+
+#### 4. Habilitar Proteção de Senha Vazada
+
+Usar a ferramenta de configuração de autenticação para habilitar a proteção contra senhas vazadas.
+
+### Detalhes Técnicos
+
+**Arquivos a serem modificados:**
+
+1. `src/components/imoveis/ImovelForm.tsx`
+   - Adicionar constantes de validação
+   - Modificar função `handlePhotoChange` para validar arquivos
+   - Adicionar validação no upload antes de enviar
+
+2. `src/pages/admin/AdminImoveis.tsx`
+   - Remover linhas de console.log (50, 56, 60, 68, 76, 83, 90)
+   - Remover linhas de console.error (71, 104)
+
+3. `src/pages/cliente/MinhaConta.tsx`
+   - Remover linha de console.error (60)
+
+4. `src/pages/ImovelDetalhe.tsx`
+   - Remover linhas de console.error (68, 85)
+
+5. `src/contexts/AuthContext.tsx`
+   - Remover linha de console.error (44)
+
+### Itens Já Corrigidos
+
+- A página `ImovelDetalhe.tsx` já não faz JOIN com profiles
+- O contato é feito através de um número fixo de WhatsApp
+- RLS está configurado corretamente nas tabelas principais
+
+### O Que NÃO Será Alterado
+
+- **Bucket público de storage**: Manter público é aceitável para um site imobiliário onde as fotos de imóveis aprovados devem ser visíveis
+- **Verificação de admin no cliente**: O RLS no banco de dados já protege os dados; a verificação no cliente é apenas UX
+
+### Resultado Esperado
+
+- Upload de fotos será validado (tipo e tamanho)
+- Logs de debug serão removidos da produção
+- Proteção contra senhas vazadas será habilitada
+- A aplicação seguirá melhores práticas de segurança
