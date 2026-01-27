@@ -124,6 +124,12 @@ export default function Login() {
                   )}
                   Entrar
                 </Button>
+                <Link 
+                  to="/esqueci-senha" 
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Esqueceu sua senha?
+                </Link>
                 <div className="text-center text-sm text-muted-foreground">
                   Não tem uma conta?{" "}
                   <Link to="/cadastro" className="text-primary hover:underline">

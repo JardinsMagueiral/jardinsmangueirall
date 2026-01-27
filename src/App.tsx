@@ -23,6 +23,8 @@ import NotFound from "./pages/NotFound";
 // Auth pages
 import Login from "./pages/auth/Login";
 import Cadastro from "./pages/auth/Cadastro";
+import EsqueciSenha from "./pages/auth/EsqueciSenha";
+import RedefinirSenha from "./pages/auth/RedefinirSenha";
 
 // Client pages
 import MinhaConta from "./pages/cliente/MinhaConta";
@@ -59,6 +61,8 @@ const App = () => (
               {/* Auth routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/cadastro" element={<Cadastro />} />
+              <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+              <Route path="/redefinir-senha" element={<RedefinirSenha />} />
 
               {/* Client routes (protected) */}
               <Route
