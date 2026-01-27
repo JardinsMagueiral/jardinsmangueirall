@@ -1,83 +1,129 @@
 
-## Plano: Corrigir Visibilidade de Imoveis para Administradores
+
+## Plano: Corrigir Acesso de Administrador aos Imoveis
+
+### Diagnostico Completo
+
+Apos investigacao extensiva, confirmei que:
+
+| Item | Status | Detalhe |
+|------|--------|---------|
+| Politicas RLS | OK | Todas sao PERMISSIVE e funcionando |
+| Role admin | OK | `rodrigoperes.adm@gmail.com` tem role admin |
+| Funcao has_role | OK | Retorna `true` para o usuario admin |
+| Imoveis no banco | OK | Existem 2 imoveis com status `pendente` |
+| Login recente | OK | Login bem sucedido as 16:51:25 |
+
+**O banco de dados esta 100% correto.**
+
+---
 
 ### Problema Identificado
 
-As politicas RLS (Row Level Security) da tabela `imoveis` estao configuradas como **RESTRICTIVE** (`Permissive: No`), o que significa que todas as condicoes precisam ser atendidas simultaneamente (AND).
+O problema esta no **codigo frontend** - especificamente no `AuthContext.tsx`:
 
-Por exemplo, para um admin ver um imovel:
-- A policy "Admins can view all properties" precisa passar **E**
-- A policy "Anyone can view approved properties" precisa passar **E**
-- A policy "Users can view their own properties" precisa passar
-
-Como o imovel nao pertence ao admin e nao esta aprovado, o admin nao consegue ver.
-
-### Solucao
-
-Recriar as politicas SELECT como **PERMISSIVE** (padrao), assim qualquer uma das condicoes permite o acesso (OR).
-
----
-
-### Alteracoes Necessarias
-
-**Migracao SQL para corrigir as politicas RLS:**
-
-```sql
--- Remover policies restritivas atuais
-DROP POLICY IF EXISTS "Admins can view all properties" ON public.imoveis;
-DROP POLICY IF EXISTS "Anyone can view approved properties" ON public.imoveis;
-DROP POLICY IF EXISTS "Users can view their own properties" ON public.imoveis;
-
--- Recriar como PERMISSIVE (padrao)
-CREATE POLICY "Admins can view all properties"
-  ON public.imoveis FOR SELECT
-  USING (public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Anyone can view approved properties"
-  ON public.imoveis FOR SELECT
-  USING (status = 'aprovado');
-
-CREATE POLICY "Users can view their own properties"
-  ON public.imoveis FOR SELECT
-  USING (auth.uid() = user_id);
+**Race Condition no carregamento:**
+```typescript
+// Problema: setLoading(false) pode executar ANTES de checkAdminRole terminar
+if (session?.user) {
+  fetchProfile(session.user.id);    // async, nao aguarda
+  checkAdminRole(session.user.id);  // async, nao aguarda
+}
+setLoading(false);  // <-- Executa imediatamente!
 ```
 
+O `ProtectedRoute` verifica `loading` e `isAdmin`. Quando `loading = false` mas `isAdmin` ainda nao foi setado (porque a promise ainda esta pendente), o usuario e redirecionado para `/minha-conta`.
+
 ---
 
-### Politica para Profiles (Permitir Admin Ver Dados do Anunciante)
+### Solucao Proposta
 
-O admin tambem precisa ver o nome/telefone do anunciante no painel. Atualmente, a tabela `profiles` so permite que usuarios vejam seu proprio perfil.
+**1. Corrigir AuthContext.tsx - Aguardar verificacoes antes de setar loading**
 
-```sql
--- Adicionar policy para admin ver profiles
-CREATE POLICY "Admins can view all profiles"
-  ON public.profiles FOR SELECT
-  USING (public.has_role(auth.uid(), 'admin'));
+```typescript
+// ANTES (problema)
+supabase.auth.getSession().then(({ data: { session } }) => {
+  setSession(session);
+  setUser(session?.user ?? null);
+  
+  if (session?.user) {
+    fetchProfile(session.user.id);
+    checkAdminRole(session.user.id);
+  }
+  
+  setLoading(false);  // Race condition!
+});
+
+// DEPOIS (correcao)
+supabase.auth.getSession().then(async ({ data: { session } }) => {
+  setSession(session);
+  setUser(session?.user ?? null);
+  
+  if (session?.user) {
+    await Promise.all([
+      fetchProfile(session.user.id),
+      checkAdminRole(session.user.id)
+    ]);
+  }
+  
+  setLoading(false);  // Agora aguarda as verificacoes
+});
 ```
 
+**2. Adicionar logs de debug temporarios no AdminImoveis**
+
+Para confirmar que o problema foi resolvido:
+```typescript
+useEffect(() => {
+  console.log("AdminImoveis mounted, fetching...");
+  fetchImoveis();
+}, []);
+
+const fetchImoveis = async () => {
+  try {
+    console.log("Fetching imoveis...");
+    const { data, error } = await supabase...
+    console.log("Imoveis result:", { data, error });
+    // ...
+  }
+};
+```
+
+**3. Adicionar foreign key entre imoveis e profiles (opcional)**
+
+Para garantir que o JOIN funcione corretamente:
+```sql
+ALTER TABLE public.imoveis
+ADD CONSTRAINT imoveis_user_id_profiles_fkey
+FOREIGN KEY (user_id) REFERENCES public.profiles(id);
+```
+
+Nota: Isso pode conflitar com a FK existente para `auth.users`. Uma alternativa e mudar a query para fazer o JOIN manualmente.
+
 ---
 
-### Resumo das Alteracoes
+### Arquivos a Modificar
 
-| Tabela | Acao | Motivo |
-|--------|------|--------|
-| imoveis | Recriar 3 policies SELECT como permissivas | Permitir que qualquer condicao (admin OU dono OU aprovado) libere acesso |
-| profiles | Adicionar policy SELECT para admin | Permitir que admin veja dados do anunciante |
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/contexts/AuthContext.tsx` | Corrigir race condition com `await Promise.all()` |
+| `src/pages/admin/AdminImoveis.tsx` | Adicionar logs temporarios para debug |
 
 ---
 
 ### Resultado Esperado
 
-1. **Admin logado**: Vera TODOS os imoveis no painel `/admin/imoveis` (pendentes, aprovados, rejeitados)
-2. **Publico sem login**: Vera apenas imoveis com status `aprovado` em `/imoveis`
-3. **Usuario logado**: Vera seus proprios imoveis + imoveis aprovados
+1. Admin logado acessa `/admin/imoveis` sem ser redirecionado
+2. Todos os imoveis (pendentes, aprovados, rejeitados) aparecem na lista
+3. Admin pode aprovar/rejeitar/excluir imoveis normalmente
 
 ---
 
-### Codigo Existente
+### Nota sobre Teste
 
-O codigo das paginas ja esta correto:
-- `AdminImoveis.tsx` busca todos os imoveis (sem filtro de status na query)
-- `Imoveis.tsx` filtra por `status = 'aprovado'`
+Apos implementar as mudancas:
+1. Faca logout completo
+2. Limpe o cache do navegador (Ctrl+Shift+Delete)
+3. Faca login novamente com `rodrigoperes.adm@gmail.com`
+4. Acesse `/admin/imoveis`
 
-Nenhuma alteracao de codigo e necessaria, apenas a correcao das politicas RLS no banco de dados.
