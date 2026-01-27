@@ -16,6 +16,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, X, MessageCircle, CheckCircle } from "lucide-react";
 
+// File upload validation constants
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
 const imovelSchema = z.object({
   tipo: z.enum(["casa", "apartamento", "terreno", "comercial"]),
   operacao: z.enum(["venda", "aluguel"]),
@@ -100,6 +104,8 @@ export function ImovelForm({ isAdmin = false, initialData, onSuccess }: ImovelFo
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    
+    // Validate total number of photos
     if (photos.length + files.length > 10) {
       toast({
         title: "Limite de fotos",
@@ -109,10 +115,34 @@ export function ImovelForm({ isAdmin = false, initialData, onSuccess }: ImovelFo
       return;
     }
 
-    setPhotos([...photos, ...files]);
+    // Validate each file for size and type
+    const validFiles: File[] = [];
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast({
+          title: "Arquivo muito grande",
+          description: `${file.name} excede o limite de 5MB`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast({
+          title: "Tipo de arquivo inválido",
+          description: `${file.name} não é uma imagem válida (use JPEG, PNG ou WebP)`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      validFiles.push(file);
+    }
+
+    setPhotos([...photos, ...validFiles]);
     
     // Create preview URLs
-    const newUrls = files.map((file) => URL.createObjectURL(file));
+    const newUrls = validFiles.map((file) => URL.createObjectURL(file));
     setPhotoUrls([...photoUrls, ...newUrls]);
   };
 
@@ -140,7 +170,6 @@ export function ImovelForm({ isAdmin = false, initialData, onSuccess }: ImovelFo
         .upload(fileName, photo);
 
       if (uploadError) {
-        console.error("Error uploading photo:", uploadError);
         continue;
       }
 
@@ -236,7 +265,6 @@ export function ImovelForm({ isAdmin = false, initialData, onSuccess }: ImovelFo
         navigate("/admin/imoveis");
       }
     } catch (error) {
-      console.error("Error saving imovel:", error);
       toast({
         title: "Erro",
         description: "Não foi possível salvar o imóvel",

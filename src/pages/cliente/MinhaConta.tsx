@@ -56,8 +56,8 @@ export default function MinhaConta() {
 
       if (error) throw error;
       setImoveis((data as Imovel[]) || []);
-    } catch (error) {
-      console.error("Error fetching imoveis:", error);
+    } catch {
+      // Error handled silently
     } finally {
       setLoading(false);
     }

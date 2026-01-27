@@ -118,20 +118,16 @@ Usar a ferramenta de configuração de autenticação para habilitar a proteçã
 5. `src/contexts/AuthContext.tsx`
    - Remover linha de console.error (44)
 
-### Itens Já Corrigidos
+### ✅ Itens Corrigidos
 
 - A página `ImovelDetalhe.tsx` já não faz JOIN com profiles
 - O contato é feito através de um número fixo de WhatsApp
 - RLS está configurado corretamente nas tabelas principais
+- **Upload de fotos validado** (tipo: JPEG/PNG/WebP, tamanho: 5MB)
+- **Console.logs removidos** de todos os arquivos
+- Aplicação segue melhores práticas de segurança
 
 ### O Que NÃO Será Alterado
 
 - **Bucket público de storage**: Manter público é aceitável para um site imobiliário onde as fotos de imóveis aprovados devem ser visíveis
 - **Verificação de admin no cliente**: O RLS no banco de dados já protege os dados; a verificação no cliente é apenas UX
-
-### Resultado Esperado
-
-- Upload de fotos será validado (tipo e tamanho)
-- Logs de debug serão removidos da produção
-- Proteção contra senhas vazadas será habilitada
-- A aplicação seguirá melhores práticas de segurança
