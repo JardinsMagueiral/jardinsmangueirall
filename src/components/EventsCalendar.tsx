@@ -1,77 +1,116 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, CalendarDays, Trash2, Edit } from "lucide-react";
+import { Plus, CalendarDays, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
-interface Event {
+interface Evento {
   id: string;
-  date: Date;
-  title: string;
-  description: string;
+  data: string;
+  titulo: string;
+  descricao: string | null;
 }
 
-const initialEvents: Event[] = [
-  { id: "1", date: new Date(2025, 0, 25), title: "Feira Comunitária", description: "Feira de produtos locais na praça principal" },
-  { id: "2", date: new Date(2025, 0, 28), title: "Reunião de Moradores", description: "Discussão sobre melhorias no bairro" },
-  { id: "3", date: new Date(2025, 1, 1), title: "Festival de Verão", description: "Música ao vivo e comidas típicas" },
-];
-
 export function EventsCalendar() {
-  const [events, setEvents] = useState<Event[]>(initialEvents);
+  const [eventos, setEventos] = useState<Evento[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
-  const [newEvent, setNewEvent] = useState({ title: "", description: "" });
+  const [submitting, setSubmitting] = useState(false);
+  const [newEvent, setNewEvent] = useState({ titulo: "", descricao: "" });
+  
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const eventsOnSelectedDate = events.filter(
-    (event) => selectedDate && format(event.date, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd")
+  useEffect(() => {
+    fetchEventos();
+  }, []);
+
+  const fetchEventos = async () => {
+    const { data } = await supabase
+      .from("eventos")
+      .select("id, data, titulo, descricao")
+      .eq("status", "aprovado")
+      .order("data", { ascending: true });
+
+    if (data) {
+      setEventos(data);
+    }
+    setLoading(false);
+  };
+
+  const eventsOnSelectedDate = eventos.filter(
+    (evento) => selectedDate && evento.data === format(selectedDate, "yyyy-MM-dd")
   );
 
-  const datesWithEvents = events.map((e) => e.date);
+  const datesWithEvents = eventos.map((e) => new Date(e.data + "T12:00:00"));
 
-  const handleAddEvent = () => {
-    if (newEvent.title && selectedDate) {
-      if (editingEvent) {
-        setEvents(events.map((e) => 
-          e.id === editingEvent.id 
-            ? { ...e, title: newEvent.title, description: newEvent.description }
-            : e
-        ));
-      } else {
-        setEvents([
-          ...events,
-          {
-            id: Date.now().toString(),
-            date: selectedDate,
-            title: newEvent.title,
-            description: newEvent.description,
-          },
-        ]);
-      }
-      setNewEvent({ title: "", description: "" });
-      setEditingEvent(null);
+  const handleSuggestEvent = async () => {
+    if (!user) {
+      toast({
+        title: "Login necessário",
+        description: "Você precisa estar logado para sugerir um evento",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
+    }
+
+    if (!newEvent.titulo || !selectedDate) {
+      toast({
+        title: "Preencha os campos",
+        description: "Título e data são obrigatórios",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    const { error } = await supabase.from("eventos").insert({
+      titulo: newEvent.titulo,
+      descricao: newEvent.descricao || null,
+      data: format(selectedDate, "yyyy-MM-dd"),
+      user_id: user.id,
+      status: "pendente",
+    });
+
+    if (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível enviar o evento",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Evento enviado!",
+        description: "Sua sugestão foi enviada para aprovação",
+      });
+      setNewEvent({ titulo: "", descricao: "" });
       setIsDialogOpen(false);
     }
+    setSubmitting(false);
   };
 
-  const handleDeleteEvent = (id: string) => {
-    setEvents(events.filter((e) => e.id !== id));
-  };
-
-  const handleEditEvent = (event: Event) => {
-    setEditingEvent(event);
-    setNewEvent({ title: event.title, description: event.description });
-    setIsDialogOpen(true);
-  };
+  if (loading) {
+    return (
+      <section className="flex justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </section>
+    );
+  }
 
   return (
-    <section className="py-16 bg-muted/50">
+    <section className="bg-muted/50 py-16">
       <div className="container px-4">
         <div className="mb-12 text-center">
           <h2 className="font-serif text-3xl font-bold text-foreground md:text-4xl">
@@ -124,44 +163,54 @@ export function EventsCalendar() {
                       : "Nenhum evento nesta data"}
                   </CardDescription>
                 </div>
-                <Dialog open={isDialogOpen} onOpenChange={(open) => {
-                  setIsDialogOpen(open);
-                  if (!open) {
-                    setEditingEvent(null);
-                    setNewEvent({ title: "", description: "" });
-                  }
-                }}>
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <Button size="sm">
                       <Plus className="mr-1 h-4 w-4" />
-                      Adicionar
+                      Sugerir Evento
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>
-                        {editingEvent ? "Editar Evento" : "Novo Evento"}
-                      </DialogTitle>
+                      <DialogTitle>Sugerir Novo Evento</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
+                      <p className="text-sm text-muted-foreground">
+                        Data selecionada:{" "}
+                        <strong>
+                          {selectedDate
+                            ? format(selectedDate, "dd/MM/yyyy", { locale: ptBR })
+                            : "Nenhuma"}
+                        </strong>
+                      </p>
                       <div>
-                        <label className="text-sm font-medium">Título</label>
+                        <label className="text-sm font-medium">Título *</label>
                         <Input
-                          value={newEvent.title}
-                          onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                          value={newEvent.titulo}
+                          onChange={(e) => setNewEvent({ ...newEvent, titulo: e.target.value })}
                           placeholder="Nome do evento"
                         />
                       </div>
                       <div>
                         <label className="text-sm font-medium">Descrição</label>
                         <Textarea
-                          value={newEvent.description}
-                          onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
-                          placeholder="Detalhes do evento"
+                          value={newEvent.descricao}
+                          onChange={(e) => setNewEvent({ ...newEvent, descricao: e.target.value })}
+                          placeholder="Detalhes do evento (opcional)"
                         />
                       </div>
-                      <Button onClick={handleAddEvent} className="w-full">
-                        {editingEvent ? "Salvar Alterações" : "Adicionar Evento"}
+                      <p className="text-xs text-muted-foreground">
+                        Seu evento será enviado para aprovação antes de aparecer no calendário.
+                      </p>
+                      <Button 
+                        onClick={handleSuggestEvent} 
+                        className="w-full"
+                        disabled={submitting}
+                      >
+                        {submitting ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : null}
+                        Enviar para Aprovação
                       </Button>
                     </div>
                   </DialogContent>
@@ -175,33 +224,15 @@ export function EventsCalendar() {
                     Nenhum evento agendado para este dia.
                   </p>
                 ) : (
-                  eventsOnSelectedDate.map((event) => (
+                  eventsOnSelectedDate.map((evento) => (
                     <div
-                      key={event.id}
-                      className="group rounded-lg border bg-card p-4 transition-all hover:shadow-md"
+                      key={evento.id}
+                      className="rounded-lg border bg-card p-4 transition-all hover:shadow-md"
                     >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="font-semibold text-foreground">{event.title}</h4>
-                          <p className="text-sm text-muted-foreground">{event.description}</p>
-                        </div>
-                        <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditEvent(event)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteEvent(event.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
+                      <h4 className="font-semibold text-foreground">{evento.titulo}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {evento.descricao || "Sem descrição"}
+                      </p>
                     </div>
                   ))
                 )}

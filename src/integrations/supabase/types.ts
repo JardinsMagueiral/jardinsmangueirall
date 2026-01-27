@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      eventos: {
+        Row: {
+          created_at: string | null
+          data: string
+          descricao: string | null
+          id: string
+          status: string | null
+          titulo: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          data: string
+          descricao?: string | null
+          id?: string
+          status?: string | null
+          titulo: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          data?: string
+          descricao?: string | null
+          id?: string
+          status?: string | null
+          titulo?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       imoveis: {
         Row: {
           aceita_pets: boolean | null
