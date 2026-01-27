@@ -1,155 +1,126 @@
 
 
-## Plano: Sistema de Eventos com Aprovação
+## Plano: Criar Conta de Administrador
 
-### Resumo
+### Objetivo
 
-Vou transformar o calendário de eventos atual (que usa dados em memória) em um sistema completo onde:
-- Qualquer pessoa pode sugerir um evento
-- Administradores aprovam/rejeitam eventos
-- Apenas eventos aprovados aparecem para todos
+Criar a conta `luciananepomuceno@jardinsmangueiral.com` com a senha especificada e promovê-la automaticamente a administrador.
 
-### O Que Será Criado
+### Abordagem
 
-#### 1. Nova Tabela no Banco de Dados: `eventos`
+Vou criar uma Edge Function administrativa temporária que usa a API de Admin do Supabase para criar o usuário. Após a criação, a função será removida por segurança.
 
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| id | uuid | Identificador único |
-| data | date | Data do evento |
-| titulo | text | Nome do evento |
-| descricao | text | Detalhes do evento |
-| status | text | pendente, aprovado, rejeitado |
-| user_id | uuid | Quem criou (opcional para visitantes) |
-| created_at | timestamp | Data de criação |
+### Passos da Implementação
 
-#### 2. Políticas de Segurança (RLS)
+#### 1. Criar Edge Function `create-admin-user`
 
-- **Visualização pública**: Qualquer pessoa vê eventos aprovados
-- **Criação**: Qualquer pessoa autenticada pode criar (status = pendente)
-- **Gerenciamento**: Apenas admins podem aprovar/rejeitar/excluir
+Esta função usará o `SUPABASE_SERVICE_ROLE_KEY` (já configurado) para:
+- Criar o usuário via Admin API
+- O trigger `handle_new_user` criará automaticamente o perfil
+- Adicionar a role `admin` na tabela `user_roles`
 
-#### 3. Página Pública de Eventos (Atualizada)
+#### 2. Executar a Função
 
-- Calendário mostra apenas eventos **aprovados**
-- Botão "Sugerir Evento" para usuários logados
-- Formulário simples para criar sugestão
+Chamar a função uma vez para criar a conta.
 
-#### 4. Nova Página Admin: Gerenciar Eventos
+#### 3. Remover a Edge Function
 
-- Lista todos os eventos (pendentes, aprovados, rejeitados)
-- Botões para aprovar/rejeitar
-- Filtro por status
-
-### Arquivos a Serem Modificados/Criados
-
-**Banco de Dados:**
-- Nova tabela `eventos` com RLS configurado
-
-**Novos Arquivos:**
-- `src/pages/admin/AdminEventos.tsx` - Painel de gerenciamento
-
-**Arquivos Modificados:**
-- `src/components/EventsCalendar.tsx` - Integrar com banco de dados
-- `src/pages/admin/AdminDashboard.tsx` - Adicionar link para eventos
-- `src/App.tsx` - Nova rota `/admin/eventos`
-- `src/integrations/supabase/types.ts` - Tipos atualizados automaticamente
+Por segurança, deletar a função após o uso para evitar criação não autorizada de admins.
 
 ### Detalhes Técnicos
 
-**SQL para criar a tabela:**
+**Edge Function: `supabase/functions/create-admin-user/index.ts`**
 
-```text
--- Tabela de eventos
-CREATE TABLE public.eventos (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  data date NOT NULL,
-  titulo text NOT NULL,
-  descricao text,
-  status text DEFAULT 'pendente',
-  user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  created_at timestamptz DEFAULT now()
-);
+```typescript
+import { createClient } from '@supabase/supabase-js'
 
--- Habilitar RLS
-ALTER TABLE public.eventos ENABLE ROW LEVEL SECURITY;
+Deno.serve(async (req) => {
+  // Proteção básica - aceitar apenas POST
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 })
+  }
 
--- Políticas
-CREATE POLICY "Anyone can view approved events"
-  ON public.eventos FOR SELECT
-  USING (status = 'aprovado');
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
 
-CREATE POLICY "Authenticated users can create events"
-  ON public.eventos FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() = user_id AND status = 'pendente');
+  // Criar usuário
+  const { data: userData, error: userError } = 
+    await supabaseAdmin.auth.admin.createUser({
+      email: 'luciananepomuceno@jardinsmangueiral.com',
+      password: 'jardinsmangueiral123',
+      email_confirm: true, // Confirma o email automaticamente
+      user_metadata: {
+        nome: 'Luciana Nepomuceno',
+        telefone: ''
+      }
+    })
 
-CREATE POLICY "Admins can view all events"
-  ON public.eventos FOR SELECT
-  USING (has_role(auth.uid(), 'admin'));
+  if (userError) {
+    return new Response(JSON.stringify({ error: userError.message }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
 
-CREATE POLICY "Admins can update events"
-  ON public.eventos FOR UPDATE
-  USING (has_role(auth.uid(), 'admin'));
+  // Adicionar role de admin
+  const { error: roleError } = await supabaseAdmin
+    .from('user_roles')
+    .upsert({ 
+      user_id: userData.user.id, 
+      role: 'admin' 
+    }, { 
+      onConflict: 'user_id,role' 
+    })
 
-CREATE POLICY "Admins can delete events"
-  ON public.eventos FOR DELETE
-  USING (has_role(auth.uid(), 'admin'));
+  if (roleError) {
+    return new Response(JSON.stringify({ error: roleError.message }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+
+  return new Response(JSON.stringify({ 
+    success: true, 
+    message: 'Admin criado com sucesso',
+    user_id: userData.user.id 
+  }), {
+    headers: { 'Content-Type': 'application/json' }
+  })
+})
 ```
 
-**Fluxo do Usuário:**
+### Fluxo de Execução
 
 ```text
-Visitante
-    |
-    v
-Ve calendario com eventos aprovados
-    |
-    v
-Clica em "Sugerir Evento"
-    |
-    v
-[Nao logado?] --> Redireciona para Login
-    |
-    v
-Preenche formulario (titulo, data, descricao)
-    |
-    v
-Evento criado com status "pendente"
-    |
-    v
-Mensagem: "Evento enviado para aprovacao!"
+1. Criar Edge Function
+        |
+        v
+2. Fazer deploy automático
+        |
+        v
+3. Chamar função via curl_edge_functions
+        |
+        v
+4. Usuário criado com:
+   - Email confirmado
+   - Perfil criado (via trigger)
+   - Role admin atribuída
+        |
+        v
+5. Deletar Edge Function (segurança)
 ```
 
-**Fluxo do Admin:**
+### Resultado Final
 
-```text
-Admin Dashboard
-    |
-    v
-Clica em "Gerenciar Eventos"
-    |
-    v
-Ve lista de eventos (filtro por status)
-    |
-    v
-[Aprovar] --> status = 'aprovado' --> Aparece no calendario
-[Rejeitar] --> status = 'rejeitado' --> Nao aparece
-[Excluir] --> Remove do banco
-```
+- Email: `luciananepomuceno@jardinsmangueiral.com`
+- Senha: `jardinsmangueiral123`
+- Função: Administrador
+- Pode fazer login imediatamente e acessar o painel admin
 
-### Interface do Painel Admin
+### Consideração de Segurança
 
-O painel de eventos terá o mesmo visual do painel de imóveis:
-- Cards com informações do evento
-- Badge colorido para status
-- Botões de ação (Aprovar, Rejeitar, Excluir)
-- Filtro por status no topo
-
-### Resultado Esperado
-
-- Qualquer usuário logado pode sugerir eventos
-- Admins têm controle total sobre o que aparece no calendário
-- Calendário público mostra apenas eventos aprovados
-- Sistema seguro com RLS protegendo os dados
+A Edge Function será deletada imediatamente após o uso para evitar que qualquer pessoa possa criar novos administradores. Todo o processo é feito de forma segura usando a chave de serviço que só o backend tem acesso.
 
