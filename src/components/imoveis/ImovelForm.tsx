@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,7 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, X, MessageCircle, CheckCircle } from "lucide-react";
+import { Loader2, Upload, MessageCircle, CheckCircle } from "lucide-react";
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
+import { SortablePhotoItem, PhotoItem } from "./SortablePhotoItem";
 
 // File upload validation constants
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -55,11 +58,9 @@ interface ImovelFormProps {
 }
 
 export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initialExistingPhotos = [], onSuccess }: ImovelFormProps) {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
-  const [existingPhotos, setExistingPhotos] = useState<ExistingPhoto[]>(initialExistingPhotos);
+  const [allPhotos, setAllPhotos] = useState<PhotoItem[]>([]);
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -68,6 +69,44 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
   const { toast } = useToast();
 
   const isEditing = !!initialData?.id;
+
+  // Initialize photos from existing photos
+  useEffect(() => {
+    if (initialExistingPhotos.length > 0) {
+      const existingItems: PhotoItem[] = initialExistingPhotos.map(photo => ({
+        id: photo.id,
+        url: photo.url,
+        type: 'existing' as const,
+      }));
+      setAllPhotos(existingItems);
+    }
+  }, [initialExistingPhotos]);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
+      },
+    })
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setAllPhotos((items) => {
+        const oldIndex = items.findIndex(item => item.id === active.id);
+        const newIndex = items.findIndex(item => item.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  }, []);
 
   const handleWhatsAppRedirect = () => {
     if (savedImovelData) {
@@ -110,16 +149,14 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
     },
   });
 
-  const totalPhotosCount = existingPhotos.length + photos.length;
-
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     
-    // Validate total number of photos (existing + new)
-    if (totalPhotosCount + files.length > 10) {
+    // Validate total number of photos
+    if (allPhotos.length + files.length > 10) {
       toast({
         title: "Limite de fotos",
-        description: `Você pode ter no máximo 10 fotos (${existingPhotos.length} existentes + ${10 - existingPhotos.length} novas)`,
+        description: `Você pode ter no máximo 10 fotos (${allPhotos.length} atual + ${10 - allPhotos.length} novas)`,
         variant: "destructive",
       });
       return;
@@ -149,85 +186,89 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
       validFiles.push(file);
     }
 
-    setPhotos([...photos, ...validFiles]);
+    // Create new photo items
+    const newPhotoItems: PhotoItem[] = validFiles.map((file) => ({
+      id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      url: URL.createObjectURL(file),
+      type: 'new' as const,
+      file,
+    }));
+
+    setAllPhotos(prev => [...prev, ...newPhotoItems]);
     
-    // Create preview URLs
-    const newUrls = validFiles.map((file) => URL.createObjectURL(file));
-    setPhotoUrls([...photoUrls, ...newUrls]);
+    // Reset input
+    e.target.value = '';
   };
 
-  const removeNewPhoto = (index: number) => {
-    const newPhotos = [...photos];
-    const newUrls = [...photoUrls];
-    
-    URL.revokeObjectURL(newUrls[index]);
-    newPhotos.splice(index, 1);
-    newUrls.splice(index, 1);
-    
-    setPhotos(newPhotos);
-    setPhotoUrls(newUrls);
-  };
+  const handleRemovePhoto = async (photo: PhotoItem) => {
+    if (photo.type === 'new') {
+      // Just remove from local state
+      URL.revokeObjectURL(photo.url);
+      setAllPhotos(prev => prev.filter(p => p.id !== photo.id));
+    } else {
+      // Delete from database and storage
+      setDeletingPhotoId(photo.id);
+      try {
+        // Extract path from URL to delete from storage
+        const urlParts = photo.url.split("/storage/v1/object/public/imoveis/");
+        if (urlParts.length > 1) {
+          const filePath = urlParts[1];
+          await supabase.storage.from("imoveis").remove([filePath]);
+        }
 
-  const deleteExistingPhoto = async (photoId: string, photoUrl: string) => {
-    setDeletingPhotoId(photoId);
-    try {
-      // Extract path from URL to delete from storage
-      const urlParts = photoUrl.split("/storage/v1/object/public/imoveis/");
-      if (urlParts.length > 1) {
-        const filePath = urlParts[1];
-        await supabase.storage.from("imoveis").remove([filePath]);
+        // Delete from database
+        const { error } = await supabase
+          .from("imovel_fotos")
+          .delete()
+          .eq("id", photo.id);
+
+        if (error) throw error;
+
+        // Update local state
+        setAllPhotos(prev => prev.filter(p => p.id !== photo.id));
+        
+        toast({
+          title: "Foto removida",
+          description: "A foto foi removida com sucesso",
+        });
+      } catch {
+        toast({
+          title: "Erro",
+          description: "Não foi possível remover a foto",
+          variant: "destructive",
+        });
+      } finally {
+        setDeletingPhotoId(null);
       }
-
-      // Delete from database
-      const { error } = await supabase
-        .from("imovel_fotos")
-        .delete()
-        .eq("id", photoId);
-
-      if (error) throw error;
-
-      // Update local state
-      setExistingPhotos(existingPhotos.filter(p => p.id !== photoId));
-      
-      toast({
-        title: "Foto removida",
-        description: "A foto foi removida com sucesso",
-      });
-    } catch {
-      toast({
-        title: "Erro",
-        description: "Não foi possível remover a foto",
-        variant: "destructive",
-      });
-    } finally {
-      setDeletingPhotoId(null);
     }
   };
 
-  const removePhoto = (index: number) => {
-    const newPhotos = [...photos];
-    const newUrls = [...photoUrls];
-    
-    URL.revokeObjectURL(newUrls[index]);
-    newPhotos.splice(index, 1);
-    newUrls.splice(index, 1);
-    
-    setPhotos(newPhotos);
-    setPhotoUrls(newUrls);
-  };
+  const uploadAndSavePhotos = async (imovelId: string) => {
+    // First, update order of existing photos
+    const existingPhotos = allPhotos.filter(p => p.type === 'existing');
+    for (let i = 0; i < existingPhotos.length; i++) {
+      const photo = existingPhotos[i];
+      const orderIndex = allPhotos.findIndex(p => p.id === photo.id);
+      await supabase
+        .from("imovel_fotos")
+        .update({ ordem: orderIndex })
+        .eq("id", photo.id);
+    }
 
-  const uploadPhotos = async (imovelId: string) => {
-    const uploadedUrls: string[] = [];
-
-    for (const photo of photos) {
-      const fileExt = photo.name.split(".").pop();
-      const fileName = `${user!.id}/${imovelId}/${Date.now()}.${fileExt}`;
+    // Then, upload and save new photos
+    const newPhotos = allPhotos.filter(p => p.type === 'new' && p.file);
+    for (const photo of newPhotos) {
+      if (!photo.file) continue;
+      
+      const fileExt = photo.file.name.split(".").pop();
+      const fileName = `${user!.id}/${imovelId}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("imoveis")
-        .upload(fileName, photo);
+        .upload(fileName, photo.file);
 
       if (uploadError) {
+        console.error("Upload error:", uploadError);
         continue;
       }
 
@@ -235,19 +276,14 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
         .from("imoveis")
         .getPublicUrl(fileName);
 
-      uploadedUrls.push(urlData.publicUrl);
-    }
-
-    // Save photo URLs to database
-    for (let i = 0; i < uploadedUrls.length; i++) {
+      const orderIndex = allPhotos.findIndex(p => p.id === photo.id);
+      
       await supabase.from("imovel_fotos").insert({
         imovel_id: imovelId,
-        url: uploadedUrls[i],
-        ordem: i,
+        url: urlData.publicUrl,
+        ordem: orderIndex,
       });
     }
-
-    return uploadedUrls;
   };
 
   const onSubmit = async (data: ImovelFormData) => {
@@ -298,10 +334,13 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
         imovelId = newImovel.id;
       }
 
-      // Upload photos if any
-      if (photos.length > 0) {
+      // Upload and save photos with order
+      const hasNewPhotos = allPhotos.some(p => p.type === 'new');
+      const hasExistingPhotos = allPhotos.some(p => p.type === 'existing');
+      
+      if (hasNewPhotos || hasExistingPhotos) {
         setUploadingPhotos(true);
-        await uploadPhotos(imovelId);
+        await uploadAndSavePhotos(imovelId);
         setUploadingPhotos(false);
       }
 
@@ -323,6 +362,7 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
         navigate("/admin/imoveis");
       }
     } catch (error) {
+      console.error("Error saving property:", error);
       toast({
         title: "Erro",
         description: "Não foi possível salvar o imóvel",
@@ -549,46 +589,38 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
         <CardHeader>
           <CardTitle>Fotos</CardTitle>
           <CardDescription>
-            Adicione até 10 fotos do imóvel ({totalPhotosCount}/10)
+            Adicione até 10 fotos do imóvel ({allPhotos.length}/10). Arraste para reordenar.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {/* Existing Photos */}
-            {existingPhotos.length > 0 && (
-              <div>
-                <p className="mb-2 text-sm font-medium text-muted-foreground">
-                  Fotos existentes ({existingPhotos.length})
-                </p>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-                  {existingPhotos.map((photo) => (
-                    <div key={photo.id} className="relative aspect-square">
-                      <img
-                        src={photo.url}
-                        alt="Foto do imóvel"
-                        className="h-full w-full rounded-lg object-cover"
+            {/* Photo Grid with Drag and Drop */}
+            {allPhotos.length > 0 && (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={allPhotos.map(p => p.id)}
+                  strategy={rectSortingStrategy}
+                >
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+                    {allPhotos.map((photo, index) => (
+                      <SortablePhotoItem
+                        key={photo.id}
+                        photo={photo}
+                        index={index}
+                        onRemove={handleRemovePhoto}
+                        isDeleting={deletingPhotoId === photo.id}
                       />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute -right-2 -top-2 h-6 w-6"
-                        onClick={() => deleteExistingPhoto(photo.id, photo.url)}
-                        disabled={deletingPhotoId === photo.id}
-                      >
-                        {deletingPhotoId === photo.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <X className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             )}
 
-            {/* Add New Photos */}
+            {/* Add Photos Button */}
             <div className="flex items-center gap-4">
               <Input
                 type="file"
@@ -602,41 +634,12 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
                 type="button"
                 variant="outline"
                 onClick={() => document.getElementById("photos")?.click()}
-                disabled={totalPhotosCount >= 10}
+                disabled={allPhotos.length >= 10}
               >
                 <Upload className="mr-2 h-4 w-4" />
-                Adicionar Novas Fotos
+                Adicionar Fotos
               </Button>
             </div>
-
-            {/* New Photos Preview */}
-            {photoUrls.length > 0 && (
-              <div>
-                <p className="mb-2 text-sm font-medium text-muted-foreground">
-                  Novas fotos ({photoUrls.length})
-                </p>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-                  {photoUrls.map((url, index) => (
-                    <div key={index} className="relative aspect-square">
-                      <img
-                        src={url}
-                        alt={`Nova foto ${index + 1}`}
-                        className="h-full w-full rounded-lg object-cover"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute -right-2 -top-2 h-6 w-6"
-                        onClick={() => removePhoto(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>
