@@ -1,128 +1,87 @@
 
-## Plano: Corrigir Query de Imoveis no AdminImoveis
 
-### Diagnostico Confirmado
+## Plano: Otimizar Performance do Login
 
-| Item | Status | Observacao |
-|------|--------|------------|
-| Dashboard mostra numeros | OK | Query simples sem JOIN funciona |
-| AdminImoveis mostra lista vazia | ERRO | Query com JOIN profiles falha |
-| Dados no banco | OK | 1 imovel pendente existe |
-| Politicas RLS | OK | Todas configuradas corretamente |
+### Problema Identificado
 
-**Problema identificado**: A query com JOIN `profiles:user_id` pode estar falhando silenciosamente ou retornando array vazio quando o Supabase nao consegue resolver o relacionamento via RLS no contexto do cliente.
+O login está lento porque:
 
----
+1. **Chamadas sequenciais**: `fetchProfile` e `checkAdminRole` são executadas uma após a outra (await + await), dobrando o tempo de espera
+2. **Chamadas duplicadas**: Quando o usuário faz login, tanto `getSession()` quanto `onAuthStateChange` (evento SIGNED_IN) executam `initializeAuth`, resultando em 4 queries ao banco ao invés de 2
 
-### Solucao
+### Solução
 
-Modificar o `AdminImoveis.tsx` para buscar os dados em duas etapas:
-1. Buscar imoveis primeiro (sem JOIN)
-2. Buscar profiles separadamente
-3. Combinar os dados manualmente
+1. **Executar queries em paralelo** usando `Promise.all()`
+2. **Evitar duplicação** verificando se já está inicializando
 
-Esta abordagem evita o problema do JOIN com RLS e garante que os imoveis sempre aparecem.
+### Mudanças Propostas
 
----
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/contexts/AuthContext.tsx` | Otimizar com Promise.all e evitar duplicação |
 
-### Codigo para AdminImoveis.tsx
-
-Substituir a funcao `fetchImoveis`:
+### Código Otimizado
 
 ```typescript
-const fetchImoveis = async () => {
-  try {
-    console.log("AdminImoveis mounted, fetching...");
+useEffect(() => {
+  let mounted = true;
+  let isInitializing = false; // Flag para evitar duplicação
 
-    // Verificar sessao atual
-    const { data: { session } } = await supabase.auth.getSession();
-    console.log("Current session user:", session?.user?.id);
+  const initializeAuth = async (session: Session | null) => {
+    if (!mounted || isInitializing) return;
+    isInitializing = true;
 
-    // 1. Buscar imoveis primeiro (sem JOIN)
-    const { data: imoveisData, error: imoveisError } = await supabase
-      .from("imoveis")
-      .select("*")
-      .order("created_at", { ascending: false });
+    setSession(session);
+    setUser(session?.user ?? null);
 
-    console.log("Imoveis result:", { data: imoveisData, error: imoveisError, count: imoveisData?.length });
-
-    if (imoveisError) {
-      console.error("Supabase error fetching imoveis:", imoveisError);
-      throw imoveisError;
+    if (session?.user) {
+      // Executar ambas as queries EM PARALELO (2x mais rápido)
+      await Promise.all([
+        fetchProfile(session.user.id),
+        checkAdminRole(session.user.id)
+      ]);
+    } else {
+      setProfile(null);
+      setIsAdmin(false);
     }
 
-    if (!imoveisData || imoveisData.length === 0) {
-      console.log("No imoveis found");
-      setImoveis([]);
-      return;
+    if (mounted) {
+      setLoading(false);
     }
+    isInitializing = false;
+  };
 
-    // 2. Buscar profiles dos proprietarios
-    const userIds = [...new Set(imoveisData.map(i => i.user_id))];
-    console.log("Fetching profiles for user_ids:", userIds);
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (event, session) => {
+      // Ignorar INITIAL_SESSION pois getSession() já trata
+      if (event === 'INITIAL_SESSION') return;
+      
+      await initializeAuth(session);
+    }
+  );
 
-    const { data: profilesData, error: profilesError } = await supabase
-      .from("profiles")
-      .select("id, nome, email, telefone")
-      .in("id", userIds);
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    initializeAuth(session);
+  });
 
-    console.log("Profiles result:", { data: profilesData, error: profilesError });
-
-    // 3. Combinar dados (mesmo se profiles falhar, ainda mostra imoveis)
-    const profilesMap = new Map(
-      (profilesData || []).map(p => [p.id, p])
-    );
-
-    const imoveisComProfiles = imoveisData.map(imovel => ({
-      ...imovel,
-      profiles: profilesMap.get(imovel.user_id) || null
-    }));
-
-    setImoveis(imoveisComProfiles as Imovel[]);
-  } catch (error) {
-    console.error("Error fetching imoveis:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  return () => {
+    mounted = false;
+    subscription.unsubscribe();
+  };
+}, []);
 ```
 
----
+### Benefícios
 
-### Mudancas
+| Antes | Depois |
+|-------|--------|
+| fetchProfile → aguarda → checkAdminRole | fetchProfile + checkAdminRole (simultâneo) |
+| ~400-600ms total | ~200-300ms total |
+| Possível duplicação de chamadas | Proteção contra duplicação |
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/pages/admin/AdminImoveis.tsx` | Refatorar `fetchImoveis` para buscar dados separadamente e combinar manualmente |
+### Resultado Esperado
 
----
+- Login aproximadamente **2x mais rápido**
+- Sem chamadas duplicadas ao banco de dados
+- Mesma funcionalidade mantida
 
-### Beneficios
-
-1. **Robustez**: Imoveis sempre aparecem, mesmo se o JOIN com profiles falhar
-2. **Debug melhorado**: Logs separados para cada etapa
-3. **Fallback**: Se profiles nao carregar, imoveis ainda aparecem (sem dados do anunciante)
-
----
-
-### Por que isso resolve?
-
-O problema do JOIN com RLS e complexo. Quando o Supabase faz um JOIN:
-- Aplica RLS em ambas as tabelas
-- Se uma linha do JOIN nao satisfaz a politica, a linha inteira e filtrada
-
-Ao buscar separadamente:
-- Query de imoveis usa politica "Admins can view all properties"
-- Query de profiles usa politica "Admins can view all profiles"
-- Nao ha conflito de JOIN
-
----
-
-### Teste Apos Implementacao
-
-1. Fazer logout
-2. Limpar cache (Ctrl+Shift+R ou limpar storage)
-3. Login com rodrigoperes.adm@gmail.com
-4. Acessar /admin/imoveis
-5. Verificar console para os logs de debug
-6. O imovel pendente deve aparecer na lista
