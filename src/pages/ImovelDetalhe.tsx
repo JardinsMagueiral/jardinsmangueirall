@@ -64,8 +64,8 @@ export default function ImovelDetalhe() {
 
       if (error) throw error;
       setImovel(data as Imovel | null);
-    } catch (error) {
-      console.error("Error fetching imovel:", error);
+    } catch {
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -81,8 +81,8 @@ export default function ImovelDetalhe() {
 
       if (error) throw error;
       setFotos((data as Foto[]) || []);
-    } catch (error) {
-      console.error("Error fetching fotos:", error);
+    } catch {
+      // Error handled silently
     }
   };
 

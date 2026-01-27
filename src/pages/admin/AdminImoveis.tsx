@@ -47,47 +47,33 @@ export default function AdminImoveis() {
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log("AdminImoveis mounted, fetching...");
     fetchImoveis();
   }, []);
 
   const fetchImoveis = async () => {
     try {
-      console.log("AdminImoveis: Fetching imoveis...");
-
-      // Verificar sessao atual
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log("Current session user:", session?.user?.id);
-
       // 1. Buscar imoveis primeiro (sem JOIN)
       const { data: imoveisData, error: imoveisError } = await supabase
         .from("imoveis")
         .select("*")
         .order("created_at", { ascending: false });
 
-      console.log("Imoveis result:", { data: imoveisData, error: imoveisError, count: imoveisData?.length });
-
       if (imoveisError) {
-        console.error("Supabase error fetching imoveis:", imoveisError);
         throw imoveisError;
       }
 
       if (!imoveisData || imoveisData.length === 0) {
-        console.log("No imoveis found");
         setImoveis([]);
         return;
       }
 
       // 2. Buscar profiles dos proprietarios
       const userIds = [...new Set(imoveisData.map(i => i.user_id))];
-      console.log("Fetching profiles for user_ids:", userIds);
 
-      const { data: profilesData, error: profilesError } = await supabase
+      const { data: profilesData } = await supabase
         .from("profiles")
         .select("id, nome, email, telefone")
         .in("id", userIds);
-
-      console.log("Profiles result:", { data: profilesData, error: profilesError });
 
       // 3. Combinar dados (mesmo se profiles falhar, ainda mostra imoveis)
       const profilesMap = new Map(
@@ -100,8 +86,8 @@ export default function AdminImoveis() {
       }));
 
       setImoveis(imoveisComProfiles as Imovel[]);
-    } catch (error) {
-      console.error("Error fetching imoveis:", error);
+    } catch {
+      // Error handled silently
     } finally {
       setLoading(false);
     }
