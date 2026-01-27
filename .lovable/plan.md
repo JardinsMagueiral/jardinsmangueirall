@@ -1,141 +1,173 @@
 
-
-## Plano: Resolver Problemas de Segurança
+## Plano: Edição de Imóveis e Destaques na Homepage
 
 ### Objetivo
 
-Corrigir os problemas de segurança identificados no scan, exceto aqueles que já estão resolvidos ou são falsos positivos.
+Permitir que administradores editem imóveis aprovados, gerenciem fotos (adicionar/remover), e exibir imóveis em destaque logo abaixo da seção de pesquisa na página inicial.
 
-### Análise Detalhada
+### Arquitetura Atual
 
-#### Problemas JÁ RESOLVIDOS (marcar como ignorados):
+```text
+Homepage (Index.tsx)
+├── HeroSection (contém PropertySearch)
+├── WhatsAppGroups
+├── CTASection
+└── EventsCalendar
 
-1. **Owner Contact Exposure** - O código atual em `ImovelDetalhe.tsx` NÃO faz JOIN com profiles. Usa WhatsApp fixo.
-2. **Photo Upload Validation** - Já implementado com limite de 5MB e validação de tipos.
+AdminImoveis.tsx
+├── Lista de imóveis com ações
+└── Botões: Aprovar, Rejeitar, Destacar, Ver, Excluir
+    (Falta: Botão Editar)
 
-#### Problemas a RESOLVER:
-
-1. **Console Error Logging** (fácil) - Remover/condicionar console.logs em produção
-2. **Missing UPDATE Policy for Photos** (fácil) - Adicionar política RLS
-3. **has_role SECURITY DEFINER** (médio) - Adicionar validação de NULL
-4. **Client Admin Check** (médio) - Já tem RLS, mas podemos melhorar
-5. **Admin Audit Trail** (médio) - Criar tabela de auditoria
-
-#### Problemas a IGNORAR com justificativa:
-
-1. **Public Storage Bucket** - Aceitável para site de imóveis (fotos precisam ser públicas)
-2. **Profiles Table Exposure** - RLS já está configurado corretamente
-
-### Passos da Implementação
-
-#### 1. Marcar Falsos Positivos como Ignorados
-
-Usar a ferramenta de segurança para atualizar os findings que já estão resolvidos.
-
-#### 2. Adicionar UPDATE Policy para imovel_fotos
-
-```sql
-CREATE POLICY "Users can update photos of their own properties"
-  ON public.imovel_fotos FOR UPDATE
-  USING (EXISTS (
-    SELECT 1 FROM imoveis 
-    WHERE imoveis.id = imovel_fotos.imovel_id 
-    AND imoveis.user_id = auth.uid()
-  ));
+ImovelForm.tsx
+├── Suporta modo edição (initialData prop)
+└── Upload de novas fotos
+    (Falta: Visualizar/remover fotos existentes)
 ```
 
-#### 3. Melhorar Função has_role
+### Mudanças Necessárias
 
-```sql
-CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role app_role)
-RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT CASE 
-    WHEN _user_id IS NULL THEN false
-    ELSE EXISTS (
-      SELECT 1 FROM public.user_roles
-      WHERE user_id = _user_id AND role = _role
-    )
-  END
-$$;
+#### 1. Nova Página: Editar Imóvel (`/admin/imoveis/:id/editar`)
+
+Criar `src/pages/admin/AdminEditarImovel.tsx`:
+- Buscar dados do imóvel pelo ID
+- Buscar fotos existentes do imóvel
+- Usar o `ImovelForm` com `initialData` preenchido
+- Permitir gerenciamento de fotos existentes
+
+#### 2. Atualizar ImovelForm para Suportar Fotos Existentes
+
+Modificar `src/components/imoveis/ImovelForm.tsx`:
+- Adicionar prop `existingPhotos?: { id: string; url: string }[]`
+- Exibir fotos existentes separadamente das novas
+- Permitir remover fotos existentes (deletar do banco e storage)
+- Manter funcionalidade de adicionar novas fotos
+
+#### 3. Adicionar Botão Editar em AdminImoveis
+
+Modificar `src/pages/admin/AdminImoveis.tsx`:
+- Adicionar botão "Editar" ao lado de "Ver"
+- Link para `/admin/imoveis/:id/editar`
+
+#### 4. Novo Componente: Imóveis em Destaque
+
+Criar `src/components/FeaturedProperties.tsx`:
+- Buscar imóveis com `destaque=true` e `status='aprovado'`
+- Exibir em formato de cards com carrossel ou grid
+- Mostrar: foto principal, tipo, operação, preço, localização
+- Link para página de detalhes
+
+#### 5. Atualizar Homepage
+
+Modificar `src/pages/Index.tsx`:
+- Adicionar `FeaturedProperties` logo após `HeroSection`
+
+#### 6. Adicionar Rota
+
+Modificar `src/App.tsx`:
+- Adicionar rota `/admin/imoveis/:id/editar` protegida para admin
+
+### Estrutura Visual da Homepage
+
+```text
++--------------------------------+
+|          Header                |
++--------------------------------+
+|        HeroSection             |
+|   (com PropertySearch)         |
++--------------------------------+
+|     FeaturedProperties         |  <-- NOVO
+|   "Imóveis em Destaque"        |
+|   [Card] [Card] [Card]         |
++--------------------------------+
+|      WhatsAppGroups            |
++--------------------------------+
+|        CTASection              |
++--------------------------------+
+|      EventsCalendar            |
++--------------------------------+
+|          Footer                |
++--------------------------------+
 ```
-
-#### 4. Remover Console Logs de Produção
-
-Atualizar os arquivos para usar logging condicional:
-- `AuthContext.tsx`
-- `AdminImoveis.tsx`
-- `ImovelForm.tsx`
-
-Exemplo:
-```typescript
-// Antes
-console.error("Error:", error);
-
-// Depois (apenas em desenvolvimento)
-if (import.meta.env.DEV) {
-  console.error("Error:", error);
-}
-```
-
-#### 5. Criar Tabela de Auditoria (Opcional - Melhoria)
-
-```sql
-CREATE TABLE public.audit_log (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  admin_id UUID NOT NULL,
-  action TEXT NOT NULL,
-  table_name TEXT NOT NULL,
-  record_id UUID NOT NULL,
-  old_values JSONB,
-  new_values JSONB,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
-ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Admins can view audit logs"
-  ON public.audit_log FOR SELECT
-  USING (has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "System can insert audit logs"
-  ON public.audit_log FOR INSERT
-  WITH CHECK (has_role(auth.uid(), 'admin'));
-```
-
-#### 6. Ignorar Storage Bucket Warning
-
-Justificativa: Para um site de anúncios de imóveis, as fotos de propriedades aprovadas precisam ser públicas para exibição. Isso é comportamento esperado.
 
 ### Detalhes Técnicos
 
-#### Arquivos a Modificar:
+#### AdminEditarImovel.tsx
 
-1. **src/contexts/AuthContext.tsx** - Remover/condicionar console.error
-2. **src/pages/admin/AdminImoveis.tsx** - Remover logs de debug
-3. **src/components/imoveis/ImovelForm.tsx** - Condicionar logs
+```typescript
+// Estrutura principal
+- useParams() para obter o ID
+- Buscar imóvel: supabase.from("imoveis").select("*").eq("id", id)
+- Buscar fotos: supabase.from("imovel_fotos").select("*").eq("imovel_id", id)
+- Renderizar ImovelForm com initialData e existingPhotos
+```
 
-#### Migrações SQL:
+#### ImovelForm.tsx - Modificações
 
-1. Adicionar UPDATE policy para imovel_fotos
-2. Atualizar função has_role com validação de NULL
-3. (Opcional) Criar tabela audit_log
+```typescript
+interface ImovelFormProps {
+  isAdmin?: boolean;
+  initialData?: Partial<ImovelFormData> & { id?: string };
+  existingPhotos?: { id: string; url: string }[];  // NOVO
+  onSuccess?: () => void;
+}
 
-### Resultado Esperado
+// Nova função para deletar foto existente
+const deleteExistingPhoto = async (photoId: string, photoUrl: string) => {
+  // 1. Extrair path do URL
+  // 2. Deletar do storage
+  // 3. Deletar da tabela imovel_fotos
+  // 4. Atualizar estado local
+};
+```
 
-Após implementação:
-- 2 findings marcados como resolvidos (falsos positivos)
-- 2 findings marcados como ignorados (comportamento intencional)
-- 3-4 findings efetivamente corrigidos
-- Código mais seguro sem logs sensíveis em produção
+#### FeaturedProperties.tsx
+
+```typescript
+// Query para buscar imóveis em destaque
+const { data: imoveis } = await supabase
+  .from("imoveis")
+  .select("*")
+  .eq("status", "aprovado")
+  .eq("destaque", true)
+  .limit(6);
+
+// Buscar primeira foto de cada imóvel
+const { data: fotos } = await supabase
+  .from("imovel_fotos")
+  .select("*")
+  .in("imovel_id", imoveis.map(i => i.id))
+  .order("ordem");
+```
+
+### Arquivos a Criar
+
+1. `src/pages/admin/AdminEditarImovel.tsx` - Página de edição
+2. `src/components/FeaturedProperties.tsx` - Seção de destaques
+
+### Arquivos a Modificar
+
+1. `src/App.tsx` - Adicionar nova rota
+2. `src/pages/Index.tsx` - Incluir FeaturedProperties
+3. `src/pages/admin/AdminImoveis.tsx` - Adicionar botão Editar
+4. `src/components/imoveis/ImovelForm.tsx` - Suporte a fotos existentes
+
+### Fluxo do Administrador
+
+1. Acessa `/admin/imoveis`
+2. Clica em "Editar" em qualquer imóvel
+3. É direcionado para `/admin/imoveis/:id/editar`
+4. Visualiza dados atuais e fotos existentes
+5. Pode:
+   - Alterar qualquer campo do formulário
+   - Remover fotos existentes
+   - Adicionar novas fotos
+6. Clica em "Salvar Alterações"
+7. Ao clicar em "Destacar", o imóvel aparece na homepage
 
 ### Considerações
 
-1. **Leaked Password Protection** - Esta configuração precisa ser ativada nas configurações do backend (autenticação). Não é código que eu altero diretamente.
-
-2. **Audit Trail** - É uma melhoria de segurança recomendada, mas não crítica. Posso implementar se desejar.
-
+- O formulário mantém o `user_id` original (não muda o proprietário)
+- Admins podem editar mesmo imóveis de outros usuários (RLS já permite)
+- Fotos removidas são deletadas tanto do banco quanto do storage
+- O limite de 10 fotos considera fotos existentes + novas
