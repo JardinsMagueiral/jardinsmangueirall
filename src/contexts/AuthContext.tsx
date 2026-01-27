@@ -69,16 +69,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let isInitializing = false;
 
     const initializeAuth = async (session: Session | null) => {
-      if (!mounted) return;
+      if (!mounted || isInitializing) return;
+      isInitializing = true;
 
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        await fetchProfile(session.user.id);
-        await checkAdminRole(session.user.id);
+        // Executar ambas as queries EM PARALELO (2x mais rápido)
+        await Promise.all([
+          fetchProfile(session.user.id),
+          checkAdminRole(session.user.id)
+        ]);
       } else {
         setProfile(null);
         setIsAdmin(false);
@@ -87,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (mounted) {
         setLoading(false);
       }
+      isInitializing = false;
     };
 
     // Set up auth state listener FIRST
