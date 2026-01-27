@@ -1,133 +1,155 @@
 
-## Plano: Melhorias de Segurança
 
-### Resumo dos Problemas Encontrados
+## Plano: Sistema de Eventos com Aprovação
 
-| Prioridade | Problema | Risco |
-|------------|----------|-------|
-| Alta | Upload de fotos sem validação | Arquivos maliciosos podem ser enviados |
-| Alta | Exposição do user_id em imóveis públicos | Permite rastrear proprietários |
-| Média | Console.log em produção | Expõe detalhes internos |
-| Média | Proteção de senha vazada desabilitada | Senhas comprometidas podem ser usadas |
-| Baixa | Bucket de storage público | Todas as fotos são acessíveis |
+### Resumo
 
-### Correções Propostas
+Vou transformar o calendário de eventos atual (que usa dados em memória) em um sistema completo onde:
+- Qualquer pessoa pode sugerir um evento
+- Administradores aprovam/rejeitam eventos
+- Apenas eventos aprovados aparecem para todos
 
-#### 1. Validação de Upload de Fotos (ImovelForm.tsx)
+### O Que Será Criado
 
-Adicionar validação no cliente para:
-- Tamanho máximo de 5MB por arquivo
-- Tipo de arquivo (apenas imagens JPEG, PNG, WebP)
-- Verificação do MIME type
+#### 1. Nova Tabela no Banco de Dados: `eventos`
 
-```typescript
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid | Identificador único |
+| data | date | Data do evento |
+| titulo | text | Nome do evento |
+| descricao | text | Detalhes do evento |
+| status | text | pendente, aprovado, rejeitado |
+| user_id | uuid | Quem criou (opcional para visitantes) |
+| created_at | timestamp | Data de criação |
 
-const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const files = Array.from(e.target.files || []);
-  
-  // Validar cada arquivo
-  for (const file of files) {
-    if (file.size > MAX_FILE_SIZE) {
-      toast({
-        title: "Arquivo muito grande",
-        description: `${file.name} excede o limite de 5MB`,
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      toast({
-        title: "Tipo de arquivo inválido",
-        description: `${file.name} não é uma imagem válida (use JPEG, PNG ou WebP)`,
-        variant: "destructive",
-      });
-      return;
-    }
-  }
-  
-  // ... resto da lógica
-};
-```
+#### 2. Políticas de Segurança (RLS)
 
-#### 2. Criar View Pública para Imóveis (Banco de Dados)
+- **Visualização pública**: Qualquer pessoa vê eventos aprovados
+- **Criação**: Qualquer pessoa autenticada pode criar (status = pendente)
+- **Gerenciamento**: Apenas admins podem aprovar/rejeitar/excluir
 
-Criar uma view que exclui o `user_id` para consultas públicas:
+#### 3. Página Pública de Eventos (Atualizada)
 
-```sql
--- View pública para imóveis aprovados (sem user_id)
-CREATE VIEW public.imoveis_publicos
-WITH (security_invoker=on) AS
-  SELECT 
-    id, tipo, operacao, endereco, numero, complemento, 
-    bairro, cep, quartos, banheiros, vagas, area_m2,
-    preco, condominio, iptu, descricao, mobiliado, 
-    aceita_pets, destaque, created_at
-  FROM public.imoveis
-  WHERE status = 'aprovado';
+- Calendário mostra apenas eventos **aprovados**
+- Botão "Sugerir Evento" para usuários logados
+- Formulário simples para criar sugestão
 
--- Política para a view
-CREATE POLICY "Anyone can view public properties"
-  ON public.imoveis_publicos FOR SELECT
-  USING (true);
-```
+#### 4. Nova Página Admin: Gerenciar Eventos
 
-**Nota**: Após análise, esta abordagem é complexa porque views com RLS requerem configurações adicionais. Uma alternativa mais simples é simplesmente não incluir `user_id` nas consultas do frontend para páginas públicas (que já foi feito em `ImovelDetalhe.tsx`).
+- Lista todos os eventos (pendentes, aprovados, rejeitados)
+- Botões para aprovar/rejeitar
+- Filtro por status
 
-#### 3. Remover Console.log de Produção
+### Arquivos a Serem Modificados/Criados
 
-Modificar os seguintes arquivos para usar logging condicional:
+**Banco de Dados:**
+- Nova tabela `eventos` com RLS configurado
 
-**AdminImoveis.tsx** - Remover todos os console.log/console.error:
-- Linha 50, 56, 60, 68, 76, 83, 90, 104
+**Novos Arquivos:**
+- `src/pages/admin/AdminEventos.tsx` - Painel de gerenciamento
 
-**MinhaConta.tsx** - Remover console.error:
-- Linha 60
-
-**ImovelDetalhe.tsx** - Remover console.error:
-- Linha 68, 85
-
-**AuthContext.tsx** - Remover console.error:
-- Linha 44
-
-#### 4. Habilitar Proteção de Senha Vazada
-
-Usar a ferramenta de configuração de autenticação para habilitar a proteção contra senhas vazadas.
+**Arquivos Modificados:**
+- `src/components/EventsCalendar.tsx` - Integrar com banco de dados
+- `src/pages/admin/AdminDashboard.tsx` - Adicionar link para eventos
+- `src/App.tsx` - Nova rota `/admin/eventos`
+- `src/integrations/supabase/types.ts` - Tipos atualizados automaticamente
 
 ### Detalhes Técnicos
 
-**Arquivos a serem modificados:**
+**SQL para criar a tabela:**
 
-1. `src/components/imoveis/ImovelForm.tsx`
-   - Adicionar constantes de validação
-   - Modificar função `handlePhotoChange` para validar arquivos
-   - Adicionar validação no upload antes de enviar
+```text
+-- Tabela de eventos
+CREATE TABLE public.eventos (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  data date NOT NULL,
+  titulo text NOT NULL,
+  descricao text,
+  status text DEFAULT 'pendente',
+  user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at timestamptz DEFAULT now()
+);
 
-2. `src/pages/admin/AdminImoveis.tsx`
-   - Remover linhas de console.log (50, 56, 60, 68, 76, 83, 90)
-   - Remover linhas de console.error (71, 104)
+-- Habilitar RLS
+ALTER TABLE public.eventos ENABLE ROW LEVEL SECURITY;
 
-3. `src/pages/cliente/MinhaConta.tsx`
-   - Remover linha de console.error (60)
+-- Políticas
+CREATE POLICY "Anyone can view approved events"
+  ON public.eventos FOR SELECT
+  USING (status = 'aprovado');
 
-4. `src/pages/ImovelDetalhe.tsx`
-   - Remover linhas de console.error (68, 85)
+CREATE POLICY "Authenticated users can create events"
+  ON public.eventos FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id AND status = 'pendente');
 
-5. `src/contexts/AuthContext.tsx`
-   - Remover linha de console.error (44)
+CREATE POLICY "Admins can view all events"
+  ON public.eventos FOR SELECT
+  USING (has_role(auth.uid(), 'admin'));
 
-### ✅ Itens Corrigidos
+CREATE POLICY "Admins can update events"
+  ON public.eventos FOR UPDATE
+  USING (has_role(auth.uid(), 'admin'));
 
-- A página `ImovelDetalhe.tsx` já não faz JOIN com profiles
-- O contato é feito através de um número fixo de WhatsApp
-- RLS está configurado corretamente nas tabelas principais
-- **Upload de fotos validado** (tipo: JPEG/PNG/WebP, tamanho: 5MB)
-- **Console.logs removidos** de todos os arquivos
-- Aplicação segue melhores práticas de segurança
+CREATE POLICY "Admins can delete events"
+  ON public.eventos FOR DELETE
+  USING (has_role(auth.uid(), 'admin'));
+```
 
-### O Que NÃO Será Alterado
+**Fluxo do Usuário:**
 
-- **Bucket público de storage**: Manter público é aceitável para um site imobiliário onde as fotos de imóveis aprovados devem ser visíveis
-- **Verificação de admin no cliente**: O RLS no banco de dados já protege os dados; a verificação no cliente é apenas UX
+```text
+Visitante
+    |
+    v
+Ve calendario com eventos aprovados
+    |
+    v
+Clica em "Sugerir Evento"
+    |
+    v
+[Nao logado?] --> Redireciona para Login
+    |
+    v
+Preenche formulario (titulo, data, descricao)
+    |
+    v
+Evento criado com status "pendente"
+    |
+    v
+Mensagem: "Evento enviado para aprovacao!"
+```
+
+**Fluxo do Admin:**
+
+```text
+Admin Dashboard
+    |
+    v
+Clica em "Gerenciar Eventos"
+    |
+    v
+Ve lista de eventos (filtro por status)
+    |
+    v
+[Aprovar] --> status = 'aprovado' --> Aparece no calendario
+[Rejeitar] --> status = 'rejeitado' --> Nao aparece
+[Excluir] --> Remove do banco
+```
+
+### Interface do Painel Admin
+
+O painel de eventos terá o mesmo visual do painel de imóveis:
+- Cards com informações do evento
+- Badge colorido para status
+- Botões de ação (Aprovar, Rejeitar, Excluir)
+- Filtro por status no topo
+
+### Resultado Esperado
+
+- Qualquer usuário logado pode sugerir eventos
+- Admins têm controle total sobre o que aparece no calendário
+- Calendário público mostra apenas eventos aprovados
+- Sistema seguro com RLS protegendo os dados
+
