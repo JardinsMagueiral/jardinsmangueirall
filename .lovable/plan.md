@@ -1,116 +1,84 @@
 
-## Plano: Correcao Definitiva do Acesso Admin
+## Plano: Corrigir Query de Imoveis no AdminImoveis
 
-### Diagnostico Final
-
-Apos analise profunda, identifiquei que:
+### Diagnostico Confirmado
 
 | Item | Status | Observacao |
 |------|--------|------------|
+| Dashboard mostra numeros | OK | Query simples sem JOIN funciona |
+| AdminImoveis mostra lista vazia | ERRO | Query com JOIN profiles falha |
 | Dados no banco | OK | 1 imovel pendente existe |
-| Politicas RLS | OK | Todas PERMISSIVE |
-| Role admin no banco | OK | Usuario tem role admin |
-| Foreign Key | OK | Ja existe entre imoveis e profiles |
+| Politicas RLS | OK | Todas configuradas corretamente |
 
-**Problema raiz**: Conflito entre `getSession()` e `onAuthStateChange()` no AuthContext.tsx
+**Problema identificado**: A query com JOIN `profiles:user_id` pode estar falhando silenciosamente ou retornando array vazio quando o Supabase nao consegue resolver o relacionamento via RLS no contexto do cliente.
 
-O fluxo atual causa problemas:
-
-```text
-1. Componente monta
-2. onAuthStateChange registrado
-3. getSession() chamado
-4. getSession() resolve -> chama fetchProfile + checkAdminRole -> setLoading(false)
-5. onAuthStateChange dispara (INITIAL_SESSION event) -> inicia OUTRO ciclo
-6. Conflito de estados
-```
+---
 
 ### Solucao
 
-Refatorar o AuthContext para ter um unico fluxo de inicializacao que garante que:
-1. `isAdmin` seja verificado ANTES de `loading = false`
-2. Nao haja conflito entre os dois metodos de recuperar sessao
+Modificar o `AdminImoveis.tsx` para buscar os dados em duas etapas:
+1. Buscar imoveis primeiro (sem JOIN)
+2. Buscar profiles separadamente
+3. Combinar os dados manualmente
 
-### Codigo Proposto para AuthContext.tsx
+Esta abordagem evita o problema do JOIN com RLS e garante que os imoveis sempre aparecem.
 
-```typescript
-useEffect(() => {
-  let mounted = true;
-  
-  const initializeAuth = async (session: Session | null) => {
-    if (!mounted) return;
-    
-    setSession(session);
-    setUser(session?.user ?? null);
-    
-    if (session?.user) {
-      await fetchProfile(session.user.id);
-      await checkAdminRole(session.user.id);
-    } else {
-      setProfile(null);
-      setIsAdmin(false);
-    }
-    
-    if (mounted) {
-      setLoading(false);
-    }
-  };
-  
-  // Configurar listener PRIMEIRO
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (event, session) => {
-      // Ignorar evento INITIAL_SESSION pois getSession() ja trata
-      if (event === 'INITIAL_SESSION') return;
-      
-      await initializeAuth(session);
-    }
-  );
-  
-  // Buscar sessao inicial
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    initializeAuth(session);
-  });
-  
-  return () => {
-    mounted = false;
-    subscription.unsubscribe();
-  };
-}, []);
-```
+---
 
-### Adicionar Debug no AdminImoveis
+### Codigo para AdminImoveis.tsx
 
-Para confirmar que as queries funcionam, adicionar log detalhado:
+Substituir a funcao `fetchImoveis`:
 
 ```typescript
 const fetchImoveis = async () => {
   try {
-    console.log("Fetching imoveis...");
-    
+    console.log("AdminImoveis mounted, fetching...");
+
     // Verificar sessao atual
     const { data: { session } } = await supabase.auth.getSession();
     console.log("Current session user:", session?.user?.id);
-    
-    const { data, error } = await supabase
+
+    // 1. Buscar imoveis primeiro (sem JOIN)
+    const { data: imoveisData, error: imoveisError } = await supabase
       .from("imoveis")
-      .select(`
-        *,
-        profiles:user_id (
-          nome,
-          email,
-          telefone
-        )
-      `)
+      .select("*")
       .order("created_at", { ascending: false });
-    
-    console.log("Imoveis result:", { data, error, count: data?.length });
-    
-    if (error) {
-      console.error("Supabase error:", error);
-      throw error;
+
+    console.log("Imoveis result:", { data: imoveisData, error: imoveisError, count: imoveisData?.length });
+
+    if (imoveisError) {
+      console.error("Supabase error fetching imoveis:", imoveisError);
+      throw imoveisError;
     }
-    
-    setImoveis((data as unknown as Imovel[]) || []);
+
+    if (!imoveisData || imoveisData.length === 0) {
+      console.log("No imoveis found");
+      setImoveis([]);
+      return;
+    }
+
+    // 2. Buscar profiles dos proprietarios
+    const userIds = [...new Set(imoveisData.map(i => i.user_id))];
+    console.log("Fetching profiles for user_ids:", userIds);
+
+    const { data: profilesData, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, nome, email, telefone")
+      .in("id", userIds);
+
+    console.log("Profiles result:", { data: profilesData, error: profilesError });
+
+    // 3. Combinar dados (mesmo se profiles falhar, ainda mostra imoveis)
+    const profilesMap = new Map(
+      (profilesData || []).map(p => [p.id, p])
+    );
+
+    const imoveisComProfiles = imoveisData.map(imovel => ({
+      ...imovel,
+      profiles: profilesMap.get(imovel.user_id) || null
+    }));
+
+    setImoveis(imoveisComProfiles as Imovel[]);
   } catch (error) {
     console.error("Error fetching imoveis:", error);
   } finally {
@@ -119,29 +87,42 @@ const fetchImoveis = async () => {
 };
 ```
 
-### Arquivos a Modificar
+---
+
+### Mudancas
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/contexts/AuthContext.tsx` | Refatorar para evitar conflito getSession/onAuthStateChange |
-| `src/pages/admin/AdminImoveis.tsx` | Adicionar logs detalhados para debug |
+| `src/pages/admin/AdminImoveis.tsx` | Refatorar `fetchImoveis` para buscar dados separadamente e combinar manualmente |
 
-### Resultado Esperado
+---
 
-1. Admin acessa `/admin` e ve estatisticas corretas
-2. Admin clica em "Gerenciar Imoveis" e ve a lista de imoveis
-3. Admin pode aprovar/rejeitar/excluir imoveis
+### Beneficios
 
-### Instrucoes de Teste
+1. **Robustez**: Imoveis sempre aparecem, mesmo se o JOIN com profiles falhar
+2. **Debug melhorado**: Logs separados para cada etapa
+3. **Fallback**: Se profiles nao carregar, imoveis ainda aparecem (sem dados do anunciante)
 
-1. Fazer logout completo
-2. Fechar todas as abas do navegador com o site
-3. Abrir DevTools (F12) -> Console
-4. Fazer login com `rodrigoperes.adm@gmail.com`
-5. Acessar `/admin/imoveis`
-6. Verificar os logs no console para diagnosticar o problema
+---
 
-Os logs mostrarao:
-- Se o usuario esta autenticado corretamente
-- Se a query esta retornando dados ou erro
-- Qual erro especifico esta ocorrendo (se houver)
+### Por que isso resolve?
+
+O problema do JOIN com RLS e complexo. Quando o Supabase faz um JOIN:
+- Aplica RLS em ambas as tabelas
+- Se uma linha do JOIN nao satisfaz a politica, a linha inteira e filtrada
+
+Ao buscar separadamente:
+- Query de imoveis usa politica "Admins can view all properties"
+- Query de profiles usa politica "Admins can view all profiles"
+- Nao ha conflito de JOIN
+
+---
+
+### Teste Apos Implementacao
+
+1. Fazer logout
+2. Limpar cache (Ctrl+Shift+R ou limpar storage)
+3. Login com rodrigoperes.adm@gmail.com
+4. Acessar /admin/imoveis
+5. Verificar console para os logs de debug
+6. O imovel pendente deve aparecer na lista
