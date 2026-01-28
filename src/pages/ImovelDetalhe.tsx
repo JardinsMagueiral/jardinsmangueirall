@@ -43,7 +43,7 @@ interface Foto {
 
 export default function ImovelDetalhe() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [imovel, setImovel] = useState<Imovel | null>(null);
   const [fotos, setFotos] = useState<Foto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,15 +51,15 @@ export default function ImovelDetalhe() {
   const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
-    if (id) {
+    if (id && !authLoading) {
       fetchImovel();
       fetchFotos();
     }
-  }, [id]);
+  }, [id, user, isAdmin, authLoading]);
 
   const fetchImovel = async () => {
     try {
-      // Buscar imóvel sem filtro de status primeiro
+      setLoading(true);
       const { data, error } = await supabase
         .from("imoveis")
         .select("*")
@@ -73,17 +73,17 @@ export default function ImovelDetalhe() {
         const userIsOwner = user?.id === imovelData.user_id;
         setIsOwner(userIsOwner);
         
-        // Se não for aprovado e não for o dono, não mostrar
-        if (imovelData.status !== "aprovado" && !userIsOwner) {
-          setImovel(null);
-        } else {
+        // Pode ver se: aprovado OU é proprietário OU é admin
+        if (imovelData.status === "aprovado" || userIsOwner || isAdmin) {
           setImovel(imovelData);
+        } else {
+          setImovel(null);
         }
       } else {
         setImovel(null);
       }
     } catch {
-      // Error handled silently
+      setImovel(null);
     } finally {
       setLoading(false);
     }
@@ -120,7 +120,7 @@ export default function ImovelDetalhe() {
     window.open(`https://wa.me/5561991647984?text=${message}`, "_blank");
   };
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header />
@@ -233,6 +233,11 @@ export default function ImovelDetalhe() {
                       </Badge>
                       {imovel.destaque && (
                         <Badge variant="secondary">Destaque</Badge>
+                      )}
+                      {imovel.status !== "aprovado" && (isOwner || isAdmin) && (
+                        <Badge variant="destructive" className="capitalize">
+                          {imovel.status}
+                        </Badge>
                       )}
                     </div>
 
