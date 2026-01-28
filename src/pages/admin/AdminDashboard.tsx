@@ -8,7 +8,7 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Home, CheckCircle, XCircle, Clock, Building, CalendarDays } from "lucide-react";
+import { Loader2, Plus, Home, CheckCircle, XCircle, Clock, Building, CalendarDays, Handshake } from "lucide-react";
 
 interface Stats {
   total: number;
@@ -17,13 +17,20 @@ interface Stats {
   rejeitados: number;
 }
 
+interface ParceiroStats {
+  total: number;
+  pendentes: number;
+}
+
 export default function AdminDashboard() {
-  const { profile, signOut } = useAuth();
+  const { profile } = useAuth();
   const [stats, setStats] = useState<Stats>({ total: 0, pendentes: 0, aprovados: 0, rejeitados: 0 });
+  const [parceiroStats, setParceiroStats] = useState<ParceiroStats>({ total: 0, pendentes: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchStats();
+    fetchParceiroStats();
   }, []);
 
   const fetchStats = async () => {
@@ -46,6 +53,23 @@ export default function AdminDashboard() {
       console.error("Error fetching stats:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchParceiroStats = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("parceiros")
+        .select("status");
+
+      if (error) throw error;
+
+      setParceiroStats({
+        total: data.length,
+        pendentes: data.filter((p) => p.status === "pendente").length,
+      });
+    } catch (error) {
+      console.error("Error fetching parceiro stats:", error);
     }
   };
 
@@ -154,6 +178,28 @@ export default function AdminDashboard() {
                 <CardContent>
                   <Button asChild className="w-full">
                     <Link to="/admin/eventos">Ver Eventos</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Handshake className="h-5 w-5" />
+                    Gerenciar Parceiros
+                  </CardTitle>
+                  <CardDescription>
+                    Aprovar e gerenciar parceiros da comunidade
+                    {parceiroStats.pendentes > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {parceiroStats.pendentes} pendente{parceiroStats.pendentes > 1 ? "s" : ""}
+                      </Badge>
+                    )}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button asChild className="w-full">
+                    <Link to="/admin/parceiros">Ver Parceiros</Link>
                   </Button>
                 </CardContent>
               </Card>
