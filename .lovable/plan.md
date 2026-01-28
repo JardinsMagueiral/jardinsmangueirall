@@ -1,119 +1,234 @@
 
 
-## Plano: Slideshow Dinâmico no Hero da Página Inicial
+## Plano: Adicionar 3 Fotos por Parceiro
 
 ### Objetivo
 
-Fazer com que a imagem de fundo da seção hero alterne automaticamente entre 3 fotos da comunidade Jardins Mangueiral, com transições suaves e não muito rápidas.
+Permitir que cada parceiro cadastre até 3 fotos do seu negócio, serviço ou produtos. As fotos serão exibidas em um carrossel no card do parceiro, similar ao funcionamento das fotos de imóveis.
 
-### Comportamento Esperado
+### Arquitetura
+
+Seguindo o mesmo padrão de `imovel_fotos`, criaremos uma tabela separada para as fotos:
 
 ```text
-Imagem 1 (atual) ──[fade 8s]──> Imagem 2 ──[fade 8s]──> Imagem 3 ──[fade 8s]──> Imagem 1...
+┌─────────────────┐         ┌──────────────────┐
+│    parceiros    │ 1 ── N  │  parceiro_fotos  │
+├─────────────────┤         ├──────────────────┤
+│ id (uuid)       │◄────────│ parceiro_id      │
+│ nome            │         │ id (uuid)        │
+│ categoria       │         │ url (text)       │
+│ ...             │         │ ordem (integer)  │
+└─────────────────┘         │ created_at       │
+                            └──────────────────┘
 ```
 
-- **Intervalo**: 8 segundos por imagem (pode ser ajustado)
-- **Transição**: Fade suave de 1 segundo
-- **Loop**: Infinito, retornando à primeira imagem após a última
+### Fluxo Visual
+
+```text
+CARD DO PARCEIRO COM FOTOS:
+┌──────────────────────────────┐
+│ ┌──────────────────────────┐ │
+│ │    [Foto 1]  ●○○        │ │  ← Carrossel com indicadores
+│ │    ◄        ►           │ │  ← Setas de navegação
+│ └──────────────────────────┘ │
+│ [Categoria]          ★      │
+│ Nome do Negócio             │
+│ Descrição...                │
+│ 📍 Endereço                 │
+│ [WhatsApp] [Instagram] [Site]│
+└──────────────────────────────┘
+```
 
 ### Mudanças Necessárias
 
-#### 1. Copiar Imagens para o Projeto
+#### 1. Banco de Dados
 
-Salvar as duas novas imagens na pasta `src/assets`:
-- `src/assets/hero-bg-2.jpg` - Vista panorâmica com céu azul
-- `src/assets/hero-bg-3.png` - Vista com sol poente
+Criar tabela `parceiro_fotos`:
 
-#### 2. Modificar HeroSection.tsx
+```sql
+CREATE TABLE public.parceiro_fotos (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  parceiro_id uuid NOT NULL REFERENCES public.parceiros(id) ON DELETE CASCADE,
+  url text NOT NULL,
+  ordem integer DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);
 
-Adicionar lógica de slideshow com React:
+-- RLS
+ALTER TABLE public.parceiro_fotos ENABLE ROW LEVEL SECURITY;
 
-```typescript
-// Imports das 3 imagens
-import heroBg1 from "@/assets/hero-bg.jpg";
-import heroBg2 from "@/assets/hero-bg-2.jpg";
-import heroBg3 from "@/assets/hero-bg-3.png";
+-- Políticas
+CREATE POLICY "Anyone can view photos of approved partners"
+ON public.parceiro_fotos FOR SELECT
+USING (EXISTS (
+  SELECT 1 FROM parceiros
+  WHERE parceiros.id = parceiro_fotos.parceiro_id
+  AND parceiros.status = 'aprovado'
+));
 
-const heroImages = [heroBg1, heroBg2, heroBg3];
+CREATE POLICY "Users can view photos of their own partners"
+ON public.parceiro_fotos FOR SELECT
+USING (EXISTS (
+  SELECT 1 FROM parceiros
+  WHERE parceiros.id = parceiro_fotos.parceiro_id
+  AND parceiros.user_id = auth.uid()
+));
 
-export function HeroSection() {
-  const [currentImage, setCurrentImage] = useState(0);
+CREATE POLICY "Users can insert photos for their own partners"
+ON public.parceiro_fotos FOR INSERT
+WITH CHECK (EXISTS (
+  SELECT 1 FROM parceiros
+  WHERE parceiros.id = parceiro_fotos.parceiro_id
+  AND parceiros.user_id = auth.uid()
+));
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentImage((prev) => (prev + 1) % heroImages.length);
-    }, 8000); // 8 segundos
+CREATE POLICY "Users can delete photos of their own partners"
+ON public.parceiro_fotos FOR DELETE
+USING (EXISTS (
+  SELECT 1 FROM parceiros
+  WHERE parceiros.id = parceiro_fotos.parceiro_id
+  AND parceiros.user_id = auth.uid()
+));
 
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <section className="relative min-h-[90vh] overflow-hidden">
-      {/* Background Images com transição */}
-      {heroImages.map((image, index) => (
-        <div
-          key={index}
-          className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000
-            ${index === currentImage ? "opacity-100" : "opacity-0"}`}
-          style={{ backgroundImage: `url(${image})` }}
-        />
-      ))}
-      
-      {/* Overlay gradient (mantido) */}
-      <div className="absolute inset-0 bg-gradient-to-b from-primary/60 via-primary/40 to-background" />
-      
-      {/* Content (inalterado) */}
-      ...
-    </section>
-  );
-}
+CREATE POLICY "Admins can manage all partner photos"
+ON public.parceiro_fotos FOR ALL
+USING (has_role(auth.uid(), 'admin'));
 ```
 
-### Detalhes Técnicos
+#### 2. Storage Bucket
 
-| Aspecto | Valor |
-|---------|-------|
-| Intervalo entre imagens | 8 segundos |
-| Duração da transição | 1 segundo (fade) |
-| Número de imagens | 3 |
-| Técnica | Múltiplas divs sobrepostas com opacity toggle |
+Criar bucket `parceiros` para armazenar as fotos:
 
-### Estrutura Visual
+```sql
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('parceiros', 'parceiros', true);
+
+-- Políticas de storage
+CREATE POLICY "Authenticated users can upload partner images"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'parceiros');
+
+CREATE POLICY "Anyone can view partner images"
+ON storage.objects FOR SELECT TO public
+USING (bucket_id = 'parceiros');
+
+CREATE POLICY "Users can delete their own partner images"
+ON storage.objects FOR DELETE TO authenticated
+USING (bucket_id = 'parceiros');
+```
+
+#### 3. Formulário de Cadastro (Parceiros.tsx)
+
+Adicionar campo de upload de fotos:
 
 ```text
-┌─────────────────────────────────────────┐
-│  [Imagem 1] opacity: 1                  │
-│  [Imagem 2] opacity: 0                  │ ← Todas empilhadas
-│  [Imagem 3] opacity: 0                  │
-│  [Gradient Overlay]                     │
-│  [Conteúdo: Título + Busca]             │
-└─────────────────────────────────────────┘
-
-        ↓ Após 8 segundos ↓
-
-┌─────────────────────────────────────────┐
-│  [Imagem 1] opacity: 0                  │
-│  [Imagem 2] opacity: 1                  │ ← Imagem 2 visível
-│  [Imagem 3] opacity: 0                  │
-│  [Gradient Overlay]                     │
-│  [Conteúdo: Título + Busca]             │
-└─────────────────────────────────────────┘
+FORMULÁRIO ATUALIZADO:
+┌──────────────────────────────┐
+│ Nome do Negócio*             │
+│ [________________________]   │
+│                              │
+│ Categoria*                   │
+│ [Dropdown____________ v]     │
+│                              │
+│ Fotos do Negócio (até 3)     │  ← NOVO
+│ ┌────┐ ┌────┐ ┌────┐ ┌────┐ │
+│ │ +  │ │foto│ │foto│ │foto│ │
+│ └────┘ └────┘ └────┘ └────┘ │
+│                              │
+│ Descrição                    │
+│ [________________________]   │
+│ ...                          │
+└──────────────────────────────┘
 ```
 
-### Arquivos a Criar/Copiar
+Mudanças:
+- Adicionar estado para fotos selecionadas
+- Componente de preview das fotos com botão de remover
+- Validação: máximo 3 fotos, 5MB cada, tipos JPEG/PNG/WebP
+- Upload após criar o parceiro (igual imóveis)
 
-1. `src/assets/hero-bg-2.jpg` - Copiar imagem enviada (vista panorâmica)
-2. `src/assets/hero-bg-3.png` - Copiar imagem enviada (sol poente)
+#### 4. Listagem Pública (Parceiros.tsx)
+
+Modificar o card para exibir carrossel:
+
+- Buscar fotos junto com parceiros
+- Usar componente Carousel do shadcn/ui
+- Exibir indicadores (bolinhas) se houver mais de 1 foto
+- Fallback para logo_url se não tiver fotos
+
+#### 5. Página Admin (AdminParceiros.tsx)
+
+Exibir fotos no card do parceiro:
+- Mostrar primeira foto ou todas em miniatura
+- Permitir visualizar fotos
+- Deletar fotos junto com o parceiro
+
+### Componentes a Usar
+
+- `Carousel`, `CarouselContent`, `CarouselItem` (já existe em `src/components/ui/carousel.tsx`)
+- Padrão de upload similar ao `ImovelForm.tsx`
+
+### Arquivos a Criar
+
+Nenhum arquivo novo necessário.
 
 ### Arquivos a Modificar
 
-1. `src/components/HeroSection.tsx` - Adicionar lógica de slideshow
+1. `src/pages/Parceiros.tsx` - Upload de fotos no formulário + carrossel na listagem
+2. `src/pages/admin/AdminParceiros.tsx` - Exibir fotos no card + deletar fotos ao excluir parceiro
 
 ### Experiência do Usuário
 
-- As imagens alternam de forma suave e elegante
-- O intervalo de 8 segundos permite que o usuário aprecie cada foto
-- A transição fade de 1 segundo é sutil e não distrai
-- O conteúdo (título, botões, busca) permanece estático e legível
-- O gradient overlay garante contraste adequado em todas as imagens
+1. Ao cadastrar, usuário pode adicionar até 3 fotos
+2. Fotos são exibidas em carrossel no card público
+3. Se não tiver fotos, mostra logo_url (comportamento atual)
+4. Se não tiver nem fotos nem logo, não mostra área de imagem
+5. Admin pode ver todas as fotos ao gerenciar
+
+### Validações
+
+| Validação | Valor |
+|-----------|-------|
+| Máximo de fotos | 3 |
+| Tamanho máximo por foto | 5MB |
+| Formatos aceitos | JPEG, PNG, WebP |
+
+### Detalhes Técnicos
+
+**Estrutura de Query com Fotos:**
+```typescript
+const { data } = await supabase
+  .from("parceiros")
+  .select(`
+    *,
+    parceiro_fotos (id, url, ordem)
+  `)
+  .eq("status", "aprovado")
+  .order("destaque", { ascending: false });
+```
+
+**Componente de Carrossel no Card:**
+```typescript
+{parceiro.parceiro_fotos?.length > 0 ? (
+  <Carousel className="w-full">
+    <CarouselContent>
+      {parceiro.parceiro_fotos
+        .sort((a, b) => a.ordem - b.ordem)
+        .map((foto) => (
+          <CarouselItem key={foto.id}>
+            <img src={foto.url} className="h-40 w-full object-cover" />
+          </CarouselItem>
+        ))}
+    </CarouselContent>
+    {parceiro.parceiro_fotos.length > 1 && (
+      <>
+        <CarouselPrevious />
+        <CarouselNext />
+      </>
+    )}
+  </Carousel>
+) : parceiro.logo_url ? (
+  <img src={parceiro.logo_url} className="h-32 w-full object-contain" />
+) : null}
+```
 
