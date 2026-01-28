@@ -1,19 +1,40 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { PropertySearch } from "./PropertySearch";
 import { Button } from "@/components/ui/button";
 import { Building, MessageCircle } from "lucide-react";
-import heroBg from "@/assets/hero-bg.jpg";
+import heroBg1 from "@/assets/hero-bg.jpg";
+import heroBg2 from "@/assets/hero-bg-2.jpg";
+import heroBg3 from "@/assets/hero-bg-3.png";
+
+const heroImages = [heroBg1, heroBg2, heroBg3];
 
 export function HeroSection() {
+  const [currentImage, setCurrentImage] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImage((prev) => (prev + 1) % heroImages.length);
+    }, 8000); // 8 segundos
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <section className="relative min-h-[90vh] overflow-hidden">
-      {/* Background Image */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${heroBg})` }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/60 via-primary/40 to-background" />
-      </div>
+      {/* Background Images with transition */}
+      {heroImages.map((image, index) => (
+        <div
+          key={index}
+          className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${
+            index === currentImage ? "opacity-100" : "opacity-0"
+          }`}
+          style={{ backgroundImage: `url(${image})` }}
+        />
+      ))}
+
+      {/* Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-primary/60 via-primary/40 to-background" />
 
       {/* Content */}
       <div className="container relative z-10 px-4 py-16 md:py-24">
