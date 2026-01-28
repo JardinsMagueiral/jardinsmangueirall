@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, ArrowLeft, MessageCircle, Bed, Bath, Car, Maximize, MapPin, DollarSign, PawPrint, Sofa } from "lucide-react";
+import { Loader2, ArrowLeft, MessageCircle, Bed, Bath, Car, Maximize, MapPin, PawPrint, Sofa, AlertTriangle } from "lucide-react";
 
 interface Imovel {
   id: string;
@@ -31,6 +32,7 @@ interface Imovel {
   status: string;
   destaque: boolean;
   created_at: string;
+  user_id: string;
 }
 
 interface Foto {
@@ -41,10 +43,12 @@ interface Foto {
 
 export default function ImovelDetalhe() {
   const { id } = useParams();
+  const { user } = useAuth();
   const [imovel, setImovel] = useState<Imovel | null>(null);
   const [fotos, setFotos] = useState<Foto[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState(0);
+  const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -55,15 +59,29 @@ export default function ImovelDetalhe() {
 
   const fetchImovel = async () => {
     try {
+      // Buscar imóvel sem filtro de status primeiro
       const { data, error } = await supabase
         .from("imoveis")
         .select("*")
         .eq("id", id)
-        .eq("status", "aprovado")
         .maybeSingle();
 
       if (error) throw error;
-      setImovel(data as Imovel | null);
+      
+      if (data) {
+        const imovelData = data as Imovel;
+        const userIsOwner = user?.id === imovelData.user_id;
+        setIsOwner(userIsOwner);
+        
+        // Se não for aprovado e não for o dono, não mostrar
+        if (imovelData.status !== "aprovado" && !userIsOwner) {
+          setImovel(null);
+        } else {
+          setImovel(imovelData);
+        }
+      } else {
+        setImovel(null);
+      }
     } catch {
       // Error handled silently
     } finally {
