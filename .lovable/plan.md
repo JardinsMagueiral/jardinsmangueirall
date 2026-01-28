@@ -1,178 +1,220 @@
 
 
-## Plano: Termo de Autorização antes do WhatsApp
+## Plano: Edição de Imóveis pelo Cliente (Apenas Pendentes)
 
 ### Objetivo
 
-Adicionar uma etapa de aceite de termos legais antes do redirecionamento para o WhatsApp após o cadastro do imóvel. O usuário só poderá prosseguir para o WhatsApp após aceitar o termo.
+Permitir que clientes possam visualizar e editar seus imóveis enquanto aguardam aprovação. Após a aprovação, apenas administradores podem editar.
 
-### Fluxo Atual
+### Situação Atual
 
 ```text
-1. Usuário preenche formulário
-2. Clica em "Cadastrar Imóvel"
-3. Imóvel é salvo no banco
-4. Dialog de sucesso aparece
-5. Usuário clica em "Ir para o WhatsApp"
-6. Redirecionado para WhatsApp
+Cliente (MinhaConta.tsx)
+├── Botão "Editar" aponta para /minha-conta/editar-imovel/:id
+├── Botão "Ver" aponta para /imoveis/:id
+└── PROBLEMA: Rota de edição não existe no App.tsx
+
+ImovelDetalhe.tsx (página pública)
+├── Mostra apenas imóveis aprovados
+└── PROBLEMA: Cliente não consegue ver seu próprio imóvel pendente
 ```
 
 ### Novo Fluxo
 
 ```text
-1. Usuário preenche formulário
-2. Clica em "Cadastrar Imóvel"
-3. Imóvel é salvo no banco
-4. Dialog de sucesso aparece COM termos
-5. Usuário lê os termos
-6. Marca checkbox "Li e aceito os termos"
-7. Botão "Ir para o WhatsApp" fica habilitado
-8. Usuário clica no botão
-9. Redirecionado para WhatsApp
-```
+Imóvel PENDENTE ou REJEITADO:
+├── Cliente PODE editar e visualizar
+├── Admin PODE editar e visualizar
 
-### Estrutura Visual do Dialog
-
-```text
-+------------------------------------------+
-|              [✓ Checkmark Icon]          |
-|                                          |
-|     Imóvel Cadastrado com Sucesso!       |
-|                                          |
-|  Seu imóvel foi enviado para aprovação.  |
-|                                          |
-+------------------------------------------+
-|  TERMOS DE AUTORIZAÇÃO                   |
-|  +------------------------------------+  |
-|  | 1ª) A presente autorização...      |  |
-|  | 2ª) Fica autorizada...             |  |
-|  | 3ª) Esta autorização é concedida...|  |
-|  | 4ª) O(a)(s) contratante(s)...      |  |
-|  | 5ª) As informações contidas...     |  |
-|  +------------------------------------+  |
-|                                          |
-|  [ ] Li e aceito os termos de            |
-|      autorização acima                   |
-|                                          |
-|       [Ir para o WhatsApp] (disabled)    |
-+------------------------------------------+
+Imóvel APROVADO:
+├── Cliente NÃO pode editar (apenas visualizar)
+├── Admin PODE editar e visualizar
 ```
 
 ### Mudanças Necessárias
 
-#### Modificar ImovelForm.tsx
+#### 1. Criar Página de Edição do Cliente
 
-1. **Adicionar novo estado** para controlar o aceite dos termos:
-```typescript
-const [termsAccepted, setTermsAccepted] = useState(false);
-```
+Criar `src/pages/cliente/EditarImovel.tsx`:
+- Buscar imóvel pelo ID
+- Verificar se pertence ao usuário logado
+- Verificar se status permite edição (pendente ou rejeitado)
+- Se aprovado, mostrar mensagem informando que não pode editar
+- Usar o `ImovelForm` existente
 
-2. **Resetar estado** quando dialog fecha:
-```typescript
-// No handleWhatsAppRedirect e onOpenChange do Dialog
-setTermsAccepted(false);
-```
+#### 2. Registrar Nova Rota
 
-3. **Expandir o Dialog de sucesso** para incluir:
-   - ScrollArea com os termos legais
-   - Checkbox para aceite
-   - Botão desabilitado até aceitar
+Modificar `src/App.tsx`:
+- Adicionar rota `/minha-conta/editar-imovel/:id` protegida
 
-### Termo Legal (Conteúdo)
+#### 3. Atualizar Interface da MinhaConta
+
+Modificar `src/pages/cliente/MinhaConta.tsx`:
+- Desabilitar/esconder botão "Editar" quando status for "aprovado"
+- Mostrar tooltip explicando que só admin pode editar após aprovação
+- Manter botão "Ver" sempre visível
+
+#### 4. Criar Página de Visualização para o Proprietário
+
+Modificar `src/pages/ImovelDetalhe.tsx`:
+- Permitir que proprietário veja seu próprio imóvel, independente do status
+- Manter restrição de `aprovado` para visitantes públicos
+
+#### 5. Ajustar RLS Policy de UPDATE
+
+A política atual permite atualização sem restrição por status. Precisamos restringir:
+- Usuários podem atualizar apenas imóveis PENDENTES ou REJEITADOS
+- Admins podem atualizar qualquer imóvel
+
+### Estrutura Visual
 
 ```text
-TERMOS DE AUTORIZAÇÃO
-
-1ª) A presente autorização, SEM EXCLUSIVIDADE, tem seu amparo na Lei 6.530, Art. 20, Item III e Artigos 722 a 729 do Código Civil Brasileiro.
-
-2ª) Fica autorizada a colocação de placas, publicação de anúncios, a promoção e a intermediação da venda do imóvel acima descrito.
-
-3ª) Esta autorização é concedida pelo prazo de 90 dias a contar desta data, prorrogada automaticamente, caso o(a)(s) contratante(s), após o término do prazo, não se manifeste(m) expressamente por escrito.
-
-4ª) O(a)(s) contratante(s) se compromete(m) a pagar os honorários de 5%, desde que a compra, venda ou permuta, ora iniciada, intermediada por esta empresa, associadas ou associados, ocorra dentro do prazo acima estipulado, ou na sua prorrogação.
-
-5ª) As informações contidas neste documento são de inteira responsabilidade do(a)(s) proprietário(a)(s) do imóvel.
++------------------------------------------+
+|  MinhaConta - Lista de Imóveis           |
++------------------------------------------+
+|  Casa para Venda | Pendente              |
+|  Rua ABC, 123                            |
+|  [Ver] [Editar] [Excluir]                |  <- Editar habilitado
+|------------------------------------------|
+|  Apartamento para Aluguel | Aprovado     |
+|  Rua XYZ, 456                            |
+|  [Ver] [Excluir]                         |  <- Sem Editar
+|  "Imóvel aprovado - apenas admin edita"  |
+|------------------------------------------|
+|  Casa para Venda | Rejeitado             |
+|  Rua DEF, 789                            |
+|  [Ver] [Editar] [Excluir]                |  <- Editar habilitado
++------------------------------------------+
 ```
 
 ### Detalhes Técnicos
 
-#### Componentes a Importar
+#### EditarImovel.tsx (Nova Página)
 
 ```typescript
-import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
-```
+export default function EditarImovel() {
+  const { id } = useParams();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  
+  const [imovel, setImovel] = useState(null);
+  const [canEdit, setCanEdit] = useState(false);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase
+        .from("imoveis")
+        .select("*")
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .single();
+      
+      if (data) {
+        setImovel(data);
+        // Pode editar se não estiver aprovado
+        setCanEdit(data.status !== "aprovado");
+      }
+    };
+    fetchData();
+  }, [id, user]);
 
-#### Novo Dialog de Sucesso
-
-```typescript
-<Dialog open={showSuccessDialog} onOpenChange={(open) => {
-  setShowSuccessDialog(open);
-  if (!open) setTermsAccepted(false);
-}}>
-  <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden">
-    <DialogHeader className="space-y-4">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-        <CheckCircle className="h-10 w-10 text-primary" />
+  if (!canEdit) {
+    return (
+      <div>
+        <p>Este imóvel já foi aprovado e não pode mais ser editado.</p>
+        <p>Entre em contato com a administração para alterações.</p>
+        <Button onClick={() => navigate("/minha-conta")}>Voltar</Button>
       </div>
-      <DialogTitle className="text-xl text-center">
-        Imóvel Cadastrado com Sucesso!
-      </DialogTitle>
-      <DialogDescription className="text-base text-center">
-        Seu imóvel foi enviado para aprovação. Para prosseguir, leia e aceite os termos abaixo.
-      </DialogDescription>
-    </DialogHeader>
-    
-    {/* Termos em ScrollArea */}
-    <div className="mt-4">
-      <h4 className="font-semibold mb-2">Termos de Autorização</h4>
-      <ScrollArea className="h-48 w-full rounded-md border p-4 text-sm text-muted-foreground">
-        <div className="space-y-3">
-          <p>1ª) A presente autorização, SEM EXCLUSIVIDADE, tem seu amparo na Lei 6.530, Art. 20, Item III e Artigos 722 a 729 do Código Civil Brasileiro.</p>
-          <p>2ª) Fica autorizada a colocação de placas, publicação de anúncios, a promoção e a intermediação da venda do imóvel acima descrito.</p>
-          <p>3ª) Esta autorização é concedida pelo prazo de 90 dias a contar desta data, prorrogada automaticamente, caso o(a)(s) contratante(s), após o término do prazo, não se manifeste(m) expressamente por escrito.</p>
-          <p>4ª) O(a)(s) contratante(s) se compromete(m) a pagar os honorários de 5%, desde que a compra, venda ou permuta, ora iniciada, intermediada por esta empresa, associadas ou associados, ocorra dentro do prazo acima estipulado, ou na sua prorrogação.</p>
-          <p>5ª) As informações contidas neste documento são de inteira responsabilidade do(a)(s) proprietário(a)(s) do imóvel.</p>
-        </div>
-      </ScrollArea>
-    </div>
+    );
+  }
 
-    {/* Checkbox de aceite */}
-    <div className="flex items-start gap-3 mt-4">
-      <Checkbox
-        id="terms"
-        checked={termsAccepted}
-        onCheckedChange={(checked) => setTermsAccepted(checked === true)}
-      />
-      <label htmlFor="terms" className="text-sm font-medium leading-none cursor-pointer">
-        Li e aceito os termos de autorização acima
-      </label>
-    </div>
-
-    <DialogFooter className="mt-4 sm:justify-center">
-      <Button 
-        variant="whatsapp" 
-        onClick={handleWhatsAppRedirect} 
-        disabled={!termsAccepted}
-        className="w-full sm:w-auto"
-      >
-        <MessageCircle className="mr-2 h-4 w-4" />
-        Ir para o WhatsApp
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+  return <ImovelForm initialData={imovel} existingPhotos={fotos} />;
+}
 ```
+
+#### RLS Policy Atualizada
+
+```sql
+-- Remover política antiga
+DROP POLICY IF EXISTS "Users can update their own properties" ON public.imoveis;
+
+-- Nova política: usuários editam apenas pendentes/rejeitados
+CREATE POLICY "Users can update their own pending properties"
+ON public.imoveis
+FOR UPDATE
+TO public
+USING (
+  auth.uid() = user_id 
+  AND status IN ('pendente', 'rejeitado')
+);
+```
+
+#### ImovelDetalhe.tsx - Permitir Proprietário Ver
+
+```typescript
+const fetchImovel = async () => {
+  // Se usuário logado, verificar se é proprietário
+  const { data: session } = await supabase.auth.getSession();
+  const userId = session?.session?.user?.id;
+
+  let query = supabase
+    .from("imoveis")
+    .select("*")
+    .eq("id", id);
+
+  // Se não for o proprietário, exigir status aprovado
+  if (!userId) {
+    query = query.eq("status", "aprovado");
+  }
+
+  const { data } = await query.maybeSingle();
+  
+  // Se tem dados mas usuário não é proprietário e não está aprovado
+  if (data && userId !== data.user_id && data.status !== "aprovado") {
+    setImovel(null); // Não mostrar
+  } else {
+    setImovel(data);
+  }
+};
+```
+
+### Arquivos a Criar
+
+1. `src/pages/cliente/EditarImovel.tsx` - Página de edição para clientes
 
 ### Arquivos a Modificar
 
-1. `src/components/imoveis/ImovelForm.tsx` - Adicionar termos no dialog
+1. `src/App.tsx` - Registrar nova rota
+2. `src/pages/cliente/MinhaConta.tsx` - Condicionar botão Editar
+3. `src/pages/ImovelDetalhe.tsx` - Permitir proprietário visualizar
 
-### Considerações
+### Migração SQL
 
-- O termo só aparece no cadastro de imóveis por usuários (não admins)
-- O checkbox deve ser marcado para habilitar o botão
-- O estado é resetado quando o dialog fecha
-- O ScrollArea permite visualizar todo o conteúdo mesmo em telas menores
-- O texto dos termos é apresentado de forma clara e legível
+```sql
+-- Ajustar política de UPDATE para restringir por status
+DROP POLICY IF EXISTS "Users can update their own properties" ON public.imoveis;
+
+CREATE POLICY "Users can update their own pending properties"
+ON public.imoveis
+FOR UPDATE
+TO public
+USING (
+  auth.uid() = user_id 
+  AND status IN ('pendente', 'rejeitado')
+);
+```
+
+### Considerações de Segurança
+
+- RLS garante que mesmo se cliente tentar editar via API, será bloqueado
+- Verificação dupla: frontend (UX) + backend (segurança)
+- Admin mantém acesso total via política separada
+
+### Experiência do Usuário
+
+1. Cliente cadastra imóvel (status: pendente)
+2. Pode visualizar e editar enquanto aguarda
+3. Ao ser rejeitado, pode corrigir e reenviar
+4. Ao ser aprovado, não pode mais editar (mensagem clara)
+5. Para alterações pós-aprovação, contata administração
 
