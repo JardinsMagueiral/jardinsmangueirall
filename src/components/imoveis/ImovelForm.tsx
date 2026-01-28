@@ -13,6 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, MessageCircle, CheckCircle } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -65,6 +67,7 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [savedImovelData, setSavedImovelData] = useState<ImovelFormData | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -117,6 +120,7 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
       window.open(`https://wa.me/5561991647984?text=${whatsappMessage}`, "_blank");
     }
     setShowSuccessDialog(false);
+    setTermsAccepted(false);
     navigate("/minha-conta");
   };
 
@@ -661,20 +665,55 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
         </Button>
       </div>
 
-      {/* Success Dialog */}
-      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-        <DialogContent className="text-center sm:max-w-md">
+      {/* Success Dialog with Terms */}
+      <Dialog open={showSuccessDialog} onOpenChange={(open) => {
+        setShowSuccessDialog(open);
+        if (!open) setTermsAccepted(false);
+      }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden">
           <DialogHeader className="space-y-4">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
               <CheckCircle className="h-10 w-10 text-primary" />
             </div>
-            <DialogTitle className="text-xl">Imóvel Cadastrado com Sucesso!</DialogTitle>
-            <DialogDescription className="text-base">
-              Seu imóvel foi enviado para aprovação. Agora você será direcionado para o WhatsApp para manter contato com nosso corretor.
+            <DialogTitle className="text-xl text-center">Imóvel Cadastrado com Sucesso!</DialogTitle>
+            <DialogDescription className="text-base text-center">
+              Seu imóvel foi enviado para aprovação. Para prosseguir, leia e aceite os termos abaixo.
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Authorization Terms */}
+          <div className="mt-4">
+            <h4 className="font-semibold mb-2">Termos de Autorização</h4>
+            <ScrollArea className="h-48 w-full rounded-md border p-4 text-sm text-muted-foreground">
+              <div className="space-y-3 pr-4">
+                <p><strong>1ª)</strong> A presente autorização, SEM EXCLUSIVIDADE, tem seu amparo na Lei 6.530, Art. 20, Item III e Artigos 722 a 729 do Código Civil Brasileiro.</p>
+                <p><strong>2ª)</strong> Fica autorizada a colocação de placas, publicação de anúncios, a promoção e a intermediação da venda do imóvel acima descrito.</p>
+                <p><strong>3ª)</strong> Esta autorização é concedida pelo prazo de 90 dias a contar desta data, prorrogada automaticamente, caso o(a)(s) contratante(s), após o término do prazo, não se manifeste(m) expressamente por escrito.</p>
+                <p><strong>4ª)</strong> O(a)(s) contratante(s) se compromete(m) a pagar os honorários de 5%, desde que a compra, venda ou permuta, ora iniciada, intermediada por esta empresa, associadas ou associados, ocorra dentro do prazo acima estipulado, ou na sua prorrogação.</p>
+                <p><strong>5ª)</strong> As informações contidas neste documento são de inteira responsabilidade do(a)(s) proprietário(a)(s) do imóvel.</p>
+              </div>
+            </ScrollArea>
+          </div>
+
+          {/* Terms Acceptance Checkbox */}
+          <div className="flex items-start gap-3 mt-4">
+            <Checkbox
+              id="terms"
+              checked={termsAccepted}
+              onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+            />
+            <label htmlFor="terms" className="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Li e aceito os termos de autorização acima
+            </label>
+          </div>
+
           <DialogFooter className="mt-4 sm:justify-center">
-            <Button variant="whatsapp" onClick={handleWhatsAppRedirect} className="w-full sm:w-auto">
+            <Button 
+              variant="whatsapp" 
+              onClick={handleWhatsAppRedirect} 
+              disabled={!termsAccepted}
+              className="w-full sm:w-auto"
+            >
               <MessageCircle className="mr-2 h-4 w-4" />
               Ir para o WhatsApp
             </Button>
