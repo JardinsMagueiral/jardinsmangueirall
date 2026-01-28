@@ -8,7 +8,8 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Home, Settings, LogOut, Eye, Edit, Trash2, Shield } from "lucide-react";
+import { Loader2, Plus, Home, LogOut, Eye, Edit, Trash2, Shield, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -226,19 +227,33 @@ export default function MinhaConta() {
                             {formatPrice(imovel.preco)}
                           </p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Button variant="outline" size="sm" asChild>
                             <Link to={`/imoveis/${imovel.id}`}>
                               <Eye className="mr-1 h-4 w-4" />
                               Ver
                             </Link>
                           </Button>
-                          <Button variant="outline" size="sm" asChild>
-                            <Link to={`/minha-conta/editar-imovel/${imovel.id}`}>
-                              <Edit className="mr-1 h-4 w-4" />
-                              Editar
-                            </Link>
-                          </Button>
+                          {imovel.status !== "aprovado" ? (
+                            <Button variant="outline" size="sm" asChild>
+                              <Link to={`/minha-conta/editar-imovel/${imovel.id}`}>
+                                <Edit className="mr-1 h-4 w-4" />
+                                Editar
+                              </Link>
+                            </Button>
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Info className="h-3 w-3" />
+                                  Aprovado
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Imóveis aprovados só podem ser editados pela administração</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="destructive" size="sm">

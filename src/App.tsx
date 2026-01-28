@@ -29,6 +29,7 @@ import RedefinirSenha from "./pages/auth/RedefinirSenha";
 // Client pages
 import MinhaConta from "./pages/cliente/MinhaConta";
 import NovoImovel from "./pages/cliente/NovoImovel";
+import EditarImovel from "./pages/cliente/EditarImovel";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -80,6 +81,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <NovoImovel />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/minha-conta/editar-imovel/:id"
+                element={
+                  <ProtectedRoute>
+                    <EditarImovel />
                   </ProtectedRoute>
                 }
               />
