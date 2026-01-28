@@ -11,10 +11,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Handshake, Wrench, Building2, UserPlus, MessageCircle, Phone, Mail, Instagram, Globe, MapPin, Loader2, Star, Plus } from "lucide-react";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Handshake, Wrench, Building2, UserPlus, MessageCircle, Phone, Mail, Instagram, Globe, MapPin, Loader2, Star, Plus, Upload, X, ImageIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
+interface ParceiroFoto {
+  id: string;
+  url: string;
+  ordem: number;
+}
 
 interface Parceiro {
   id: string;
@@ -28,6 +35,7 @@ interface Parceiro {
   endereco: string | null;
   logo_url: string | null;
   destaque: boolean;
+  parceiro_fotos?: ParceiroFoto[];
 }
 
 const CATEGORIAS = [
@@ -42,6 +50,10 @@ const CATEGORIAS = [
   "Outros",
 ];
 
+const MAX_PHOTOS = 3;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
 const Parceiros = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -50,6 +62,8 @@ const Parceiros = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -71,7 +85,10 @@ const Parceiros = () => {
     try {
       const { data, error } = await supabase
         .from("parceiros")
-        .select("*")
+        .select(`
+          *,
+          parceiro_fotos (id, url, ordem)
+        `)
         .eq("status", "aprovado")
         .order("destaque", { ascending: false })
         .order("nome", { ascending: true });
@@ -87,6 +104,102 @@ const Parceiros = () => {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newFiles: File[] = [];
+    const newPreviews: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      if (selectedPhotos.length + newFiles.length >= MAX_PHOTOS) {
+        toast({
+          title: "Limite de fotos",
+          description: `Você pode adicionar no máximo ${MAX_PHOTOS} fotos.`,
+          variant: "destructive",
+        });
+        break;
+      }
+
+      const file = files[i];
+
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast({
+          title: "Formato inválido",
+          description: `${file.name} não é um formato aceito. Use JPEG, PNG ou WebP.`,
+          variant: "destructive",
+        });
+        continue;
+      }
+
+      if (file.size > MAX_FILE_SIZE) {
+        toast({
+          title: "Arquivo muito grande",
+          description: `${file.name} excede 5MB.`,
+          variant: "destructive",
+        });
+        continue;
+      }
+
+      newFiles.push(file);
+      newPreviews.push(URL.createObjectURL(file));
+    }
+
+    setSelectedPhotos((prev) => [...prev, ...newFiles]);
+    setPhotoPreviews((prev) => [...prev, ...newPreviews]);
+    
+    // Reset input
+    e.target.value = "";
+  };
+
+  const removePhoto = (index: number) => {
+    URL.revokeObjectURL(photoPreviews[index]);
+    setSelectedPhotos((prev) => prev.filter((_, i) => i !== index));
+    setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadPhotos = async (parceiroId: string) => {
+    const uploadedUrls: { url: string; ordem: number }[] = [];
+
+    for (let i = 0; i < selectedPhotos.length; i++) {
+      const file = selectedPhotos[i];
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${parceiroId}/${Date.now()}-${i}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("parceiros")
+        .upload(fileName, file);
+
+      if (uploadError) {
+        console.error("Erro ao fazer upload:", uploadError);
+        continue;
+      }
+
+      const { data: publicUrl } = supabase.storage
+        .from("parceiros")
+        .getPublicUrl(fileName);
+
+      uploadedUrls.push({ url: publicUrl.publicUrl, ordem: i });
+    }
+
+    // Insert photo records
+    if (uploadedUrls.length > 0) {
+      const { error: insertError } = await supabase
+        .from("parceiro_fotos")
+        .insert(
+          uploadedUrls.map((photo) => ({
+            parceiro_id: parceiroId,
+            url: photo.url,
+            ordem: photo.ordem,
+          }))
+        );
+
+      if (insertError) {
+        console.error("Erro ao salvar fotos:", insertError);
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -114,26 +227,36 @@ const Parceiros = () => {
     try {
       setSubmitting(true);
       
-      const { error } = await supabase.from("parceiros").insert({
-        nome: formData.nome.trim(),
-        categoria: formData.categoria,
-        descricao: formData.descricao.trim() || null,
-        telefone: formData.telefone.trim(),
-        email: formData.email.trim() || null,
-        instagram: formData.instagram.trim() || null,
-        site: formData.site.trim() || null,
-        endereco: formData.endereco.trim() || null,
-        user_id: user.id,
-        status: "pendente",
-      });
+      const { data: newParceiro, error } = await supabase
+        .from("parceiros")
+        .insert({
+          nome: formData.nome.trim(),
+          categoria: formData.categoria,
+          descricao: formData.descricao.trim() || null,
+          telefone: formData.telefone.trim(),
+          email: formData.email.trim() || null,
+          instagram: formData.instagram.trim() || null,
+          site: formData.site.trim() || null,
+          endereco: formData.endereco.trim() || null,
+          user_id: user.id,
+          status: "pendente",
+        })
+        .select("id")
+        .single();
 
       if (error) throw error;
+
+      // Upload photos if any
+      if (selectedPhotos.length > 0 && newParceiro) {
+        await uploadPhotos(newParceiro.id);
+      }
 
       toast({
         title: "Cadastro enviado!",
         description: "Seu negócio foi enviado para aprovação. Você será notificado quando for aprovado.",
       });
 
+      // Reset form
       setFormData({
         nome: "",
         categoria: "",
@@ -144,6 +267,9 @@ const Parceiros = () => {
         site: "",
         endereco: "",
       });
+      photoPreviews.forEach((url) => URL.revokeObjectURL(url));
+      setSelectedPhotos([]);
+      setPhotoPreviews([]);
       setDialogOpen(false);
     } catch (error: any) {
       console.error("Erro ao cadastrar parceiro:", error);
@@ -160,6 +286,121 @@ const Parceiros = () => {
   const formatWhatsApp = (telefone: string) => {
     const cleaned = telefone.replace(/\D/g, "");
     return cleaned.startsWith("55") ? cleaned : `55${cleaned}`;
+  };
+
+  const ParceiroCard = ({ parceiro }: { parceiro: Parceiro }) => {
+    const fotos = parceiro.parceiro_fotos?.sort((a, b) => a.ordem - b.ordem) || [];
+    const hasPhotos = fotos.length > 0;
+    const hasLogo = Boolean(parceiro.logo_url);
+
+    return (
+      <Card className={`transition-all hover:shadow-lg ${parceiro.destaque ? "ring-2 ring-primary" : ""}`}>
+        {/* Photos Carousel or Logo */}
+        {hasPhotos ? (
+          <div className="relative overflow-hidden rounded-t-lg">
+            <Carousel className="w-full">
+              <CarouselContent>
+                {fotos.map((foto) => (
+                  <CarouselItem key={foto.id}>
+                    <div className="h-40 w-full">
+                      <img
+                        src={foto.url}
+                        alt={parceiro.nome}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              {fotos.length > 1 && (
+                <>
+                  <CarouselPrevious className="left-2 h-8 w-8" />
+                  <CarouselNext className="right-2 h-8 w-8" />
+                </>
+              )}
+            </Carousel>
+            {/* Indicators */}
+            {fotos.length > 1 && (
+              <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
+                {fotos.map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-1.5 w-1.5 rounded-full bg-white/70"
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : hasLogo ? (
+          <div className="h-32 overflow-hidden rounded-t-lg bg-muted">
+            <img
+              src={parceiro.logo_url!}
+              alt={parceiro.nome}
+              className="h-full w-full object-contain p-4"
+            />
+          </div>
+        ) : null}
+
+        <CardHeader className="pb-2">
+          <div className="flex items-start justify-between gap-2">
+            <Badge variant="secondary">{parceiro.categoria}</Badge>
+            {parceiro.destaque && (
+              <Star className="h-5 w-5 fill-primary text-primary" />
+            )}
+          </div>
+          <CardTitle className="text-xl">{parceiro.nome}</CardTitle>
+          {parceiro.descricao && (
+            <CardDescription className="line-clamp-2">
+              {parceiro.descricao}
+            </CardDescription>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {parceiro.endereco && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <MapPin className="h-4 w-4" />
+              <span className="line-clamp-1">{parceiro.endereco}</span>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="whatsapp" size="sm" asChild>
+              <a
+                href={`https://wa.me/${formatWhatsApp(parceiro.telefone)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Phone className="mr-1 h-4 w-4" />
+                WhatsApp
+              </a>
+            </Button>
+            {parceiro.instagram && (
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={`https://instagram.com/${parceiro.instagram.replace("@", "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Instagram className="mr-1 h-4 w-4" />
+                  Instagram
+                </a>
+              </Button>
+            )}
+            {parceiro.site && (
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={parceiro.site.startsWith("http") ? parceiro.site : `https://${parceiro.site}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Globe className="mr-1 h-4 w-4" />
+                  Site
+                </a>
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
@@ -197,75 +438,7 @@ const Parceiros = () => {
                 </h2>
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {parceiros.map((parceiro) => (
-                    <Card key={parceiro.id} className={`transition-all hover:shadow-lg ${parceiro.destaque ? "ring-2 ring-primary" : ""}`}>
-                      {parceiro.logo_url && (
-                        <div className="h-32 overflow-hidden rounded-t-lg bg-muted">
-                          <img
-                            src={parceiro.logo_url}
-                            alt={parceiro.nome}
-                            className="h-full w-full object-contain p-4"
-                          />
-                        </div>
-                      )}
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <Badge variant="secondary">{parceiro.categoria}</Badge>
-                          {parceiro.destaque && (
-                            <Star className="h-5 w-5 fill-primary text-primary" />
-                          )}
-                        </div>
-                        <CardTitle className="text-xl">{parceiro.nome}</CardTitle>
-                        {parceiro.descricao && (
-                          <CardDescription className="line-clamp-2">
-                            {parceiro.descricao}
-                          </CardDescription>
-                        )}
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {parceiro.endereco && (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <MapPin className="h-4 w-4" />
-                            <span className="line-clamp-1">{parceiro.endereco}</span>
-                          </div>
-                        )}
-                        <div className="flex flex-wrap gap-2">
-                          <Button variant="whatsapp" size="sm" asChild>
-                            <a
-                              href={`https://wa.me/${formatWhatsApp(parceiro.telefone)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Phone className="mr-1 h-4 w-4" />
-                              WhatsApp
-                            </a>
-                          </Button>
-                          {parceiro.instagram && (
-                            <Button variant="outline" size="sm" asChild>
-                              <a
-                                href={`https://instagram.com/${parceiro.instagram.replace("@", "")}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <Instagram className="mr-1 h-4 w-4" />
-                                Instagram
-                              </a>
-                            </Button>
-                          )}
-                          {parceiro.site && (
-                            <Button variant="outline" size="sm" asChild>
-                              <a
-                                href={parceiro.site.startsWith("http") ? parceiro.site : `https://${parceiro.site}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <Globe className="mr-1 h-4 w-4" />
-                                Site
-                              </a>
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <ParceiroCard key={parceiro.id} parceiro={parceiro} />
                   ))}
                 </div>
               </div>
@@ -399,6 +572,48 @@ const Parceiros = () => {
                                 ))}
                               </SelectContent>
                             </Select>
+                          </div>
+
+                          {/* Photo Upload Section */}
+                          <div className="space-y-2">
+                            <Label>Fotos do Negócio (até {MAX_PHOTOS})</Label>
+                            <div className="flex flex-wrap gap-3">
+                              {/* Photo Previews */}
+                              {photoPreviews.map((preview, index) => (
+                                <div key={index} className="relative h-20 w-20">
+                                  <img
+                                    src={preview}
+                                    alt={`Foto ${index + 1}`}
+                                    className="h-full w-full rounded-lg object-cover"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removePhoto(index)}
+                                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ))}
+
+                              {/* Add Photo Button */}
+                              {selectedPhotos.length < MAX_PHOTOS && (
+                                <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/50 text-muted-foreground transition-colors hover:border-primary hover:bg-muted hover:text-primary">
+                                  <ImageIcon className="h-6 w-6" />
+                                  <span className="text-xs">Adicionar</span>
+                                  <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    multiple
+                                    onChange={handlePhotoSelect}
+                                    className="hidden"
+                                  />
+                                </label>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              JPEG, PNG ou WebP. Máximo 5MB cada.
+                            </p>
                           </div>
 
                           <div className="space-y-2">

@@ -187,6 +187,38 @@ export type Database = {
           },
         ]
       }
+      parceiro_fotos: {
+        Row: {
+          created_at: string | null
+          id: string
+          ordem: number | null
+          parceiro_id: string
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ordem?: number | null
+          parceiro_id: string
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ordem?: number | null
+          parceiro_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parceiro_fotos_parceiro_id_fkey"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "parceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parceiros: {
         Row: {
           categoria: string

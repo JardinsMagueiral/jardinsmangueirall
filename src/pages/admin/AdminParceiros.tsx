@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Loader2, 
@@ -20,7 +21,8 @@ import {
   Mail, 
   Instagram, 
   Globe, 
-  MapPin 
+  MapPin,
+  ImageIcon
 } from "lucide-react";
 import {
   AlertDialog,
@@ -33,6 +35,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+interface ParceiroFoto {
+  id: string;
+  url: string;
+  ordem: number;
+}
 
 interface Parceiro {
   id: string;
@@ -48,6 +56,7 @@ interface Parceiro {
   status: string;
   destaque: boolean;
   created_at: string;
+  parceiro_fotos?: ParceiroFoto[];
 }
 
 export default function AdminParceiros() {
@@ -65,7 +74,10 @@ export default function AdminParceiros() {
       setLoading(true);
       const { data, error } = await supabase
         .from("parceiros")
-        .select("*")
+        .select(`
+          *,
+          parceiro_fotos (id, url, ordem)
+        `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -172,35 +184,71 @@ export default function AdminParceiros() {
     return cleaned.startsWith("55") ? cleaned : `55${cleaned}`;
   };
 
-  const ParceiroCard = ({ parceiro }: { parceiro: Parceiro }) => (
-    <Card className={parceiro.destaque ? "ring-2 ring-primary" : ""}>
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">{parceiro.categoria}</Badge>
-            {parceiro.destaque && (
-              <Star className="h-4 w-4 fill-primary text-primary" />
-            )}
+  const ParceiroCard = ({ parceiro }: { parceiro: Parceiro }) => {
+    const fotos = parceiro.parceiro_fotos?.sort((a, b) => a.ordem - b.ordem) || [];
+    const hasPhotos = fotos.length > 0;
+
+    return (
+      <Card className={parceiro.destaque ? "ring-2 ring-primary" : ""}>
+        {/* Photos Carousel */}
+        {hasPhotos && (
+          <div className="relative overflow-hidden rounded-t-lg">
+            <Carousel className="w-full">
+              <CarouselContent>
+                {fotos.map((foto) => (
+                  <CarouselItem key={foto.id}>
+                    <div className="h-32 w-full">
+                      <img
+                        src={foto.url}
+                        alt={parceiro.nome}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              {fotos.length > 1 && (
+                <>
+                  <CarouselPrevious className="left-1 h-7 w-7" />
+                  <CarouselNext className="right-1 h-7 w-7" />
+                </>
+              )}
+            </Carousel>
+            {/* Photo count badge */}
+            <div className="absolute bottom-1 right-1 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
+              <ImageIcon className="h-3 w-3" />
+              {fotos.length}
+            </div>
           </div>
-          <Badge
-            variant={
-              parceiro.status === "aprovado"
-                ? "default"
-                : parceiro.status === "pendente"
-                ? "secondary"
-                : "destructive"
-            }
-          >
-            {parceiro.status}
-          </Badge>
-        </div>
-        <CardTitle className="text-lg">{parceiro.nome}</CardTitle>
-        {parceiro.descricao && (
-          <CardDescription className="line-clamp-2">
-            {parceiro.descricao}
-          </CardDescription>
         )}
-      </CardHeader>
+
+        <CardHeader className="pb-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">{parceiro.categoria}</Badge>
+              {parceiro.destaque && (
+                <Star className="h-4 w-4 fill-primary text-primary" />
+              )}
+            </div>
+            <Badge
+              variant={
+                parceiro.status === "aprovado"
+                  ? "default"
+                  : parceiro.status === "pendente"
+                  ? "secondary"
+                  : "destructive"
+              }
+            >
+              {parceiro.status}
+            </Badge>
+          </div>
+          <CardTitle className="text-lg">{parceiro.nome}</CardTitle>
+          {parceiro.descricao && (
+            <CardDescription className="line-clamp-2">
+              {parceiro.descricao}
+            </CardDescription>
+          )}
+        </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-1 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
@@ -304,7 +352,8 @@ export default function AdminParceiros() {
         </div>
       </CardContent>
     </Card>
-  );
+    );
+  };
 
   return (
     <>
