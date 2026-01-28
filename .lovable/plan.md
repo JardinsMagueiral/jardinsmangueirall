@@ -1,276 +1,119 @@
 
 
-## Plano: Sistema de Cadastro de Parceiros com Aprovação
+## Plano: Slideshow Dinâmico no Hero da Página Inicial
 
 ### Objetivo
 
-Permitir que pessoas cadastrem seus serviços, lojas ou marcas locais na página de Parceiros. Os cadastros passam por aprovação do administrador antes de aparecer publicamente, seguindo o mesmo padrão de eventos e imóveis.
+Fazer com que a imagem de fundo da seção hero alterne automaticamente entre 3 fotos da comunidade Jardins Mangueiral, com transições suaves e não muito rápidas.
 
-### Fluxo do Sistema
-
-```text
-FLUXO DO PARCEIRO:
-1. Usuário (logado ou não) acessa /parceiros
-2. Clica em "Cadastrar meu negócio"
-3. Preenche formulário com dados do negócio
-4. Se não logado, preenche nome/email/telefone
-5. Envia cadastro (status: pendente)
-6. Aguarda aprovação do admin
-
-FLUXO DO ADMINISTRADOR:
-1. Admin acessa /admin/parceiros
-2. Vê lista de parceiros pendentes
-3. Aprova ou rejeita cadastros
-4. Parceiros aprovados aparecem na página pública
-```
-
-### Estrutura Visual da Página Parceiros
+### Comportamento Esperado
 
 ```text
-+------------------------------------------+
-|            REDE DE CONFIANÇA             |
-|  Prestadores de serviços e empresas...   |
-+------------------------------------------+
-
-+------------------------------------------+
-|        PARCEIROS DA COMUNIDADE           |
-|  (Grid de cards com parceiros aprovados) |
-|  +--------+  +--------+  +--------+      |
-|  | Logo   |  | Logo   |  | Logo   |      |
-|  | Nome   |  | Nome   |  | Nome   |      |
-|  | Categ. |  | Categ. |  | Categ. |      |
-|  | Desc.  |  | Desc.  |  | Desc.  |      |
-|  | Contato|  | Contato|  | Contato|      |
-|  +--------+  +--------+  +--------+      |
-+------------------------------------------+
-
-+------------------------------------------+
-|        CADASTRE SEU NEGÓCIO              |
-|  [Formulário ou botão para cadastrar]    |
-+------------------------------------------+
+Imagem 1 (atual) ──[fade 8s]──> Imagem 2 ──[fade 8s]──> Imagem 3 ──[fade 8s]──> Imagem 1...
 ```
+
+- **Intervalo**: 8 segundos por imagem (pode ser ajustado)
+- **Transição**: Fade suave de 1 segundo
+- **Loop**: Infinito, retornando à primeira imagem após a última
 
 ### Mudanças Necessárias
 
-#### 1. Criar Tabela no Banco de Dados
+#### 1. Copiar Imagens para o Projeto
 
-Nova tabela `parceiros`:
+Salvar as duas novas imagens na pasta `src/assets`:
+- `src/assets/hero-bg-2.jpg` - Vista panorâmica com céu azul
+- `src/assets/hero-bg-3.png` - Vista com sol poente
 
-```sql
-CREATE TABLE public.parceiros (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  nome text NOT NULL,
-  categoria text NOT NULL,
-  descricao text,
-  telefone text NOT NULL,
-  email text,
-  instagram text,
-  site text,
-  endereco text,
-  logo_url text,
-  user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  status text DEFAULT 'pendente',
-  destaque boolean DEFAULT false,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
+#### 2. Modificar HeroSection.tsx
 
--- RLS
-ALTER TABLE public.parceiros ENABLE ROW LEVEL SECURITY;
-
--- Políticas
-CREATE POLICY "Anyone can view approved partners"
-ON public.parceiros FOR SELECT
-USING (status = 'aprovado');
-
-CREATE POLICY "Users can view their own partners"
-ON public.parceiros FOR SELECT
-USING (auth.uid() = user_id);
-
-CREATE POLICY "Authenticated users can create partners"
-ON public.parceiros FOR INSERT
-WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Admins can view all partners"
-ON public.parceiros FOR SELECT
-USING (has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Admins can update all partners"
-ON public.parceiros FOR UPDATE
-USING (has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Admins can delete all partners"
-ON public.parceiros FOR DELETE
-USING (has_role(auth.uid(), 'admin'));
-```
-
-Categorias sugeridas:
-- Alimentação
-- Beleza e Estética
-- Saúde
-- Serviços Domésticos
-- Educação
-- Pet
-- Tecnologia
-- Construção e Reforma
-- Outros
-
-#### 2. Atualizar Página de Parceiros
-
-Modificar `src/pages/Parceiros.tsx`:
-- Adicionar seção que lista parceiros aprovados
-- Adicionar formulário/dialog para cadastro de novo parceiro
-- Usuário logado pode cadastrar diretamente
-- Usuário não logado é redirecionado para login
-
-#### 3. Criar Página Admin de Parceiros
-
-Criar `src/pages/admin/AdminParceiros.tsx`:
-- Lista todos os parceiros (pendentes, aprovados, rejeitados)
-- Botões para aprovar/rejeitar
-- Opção de destacar parceiro
-- Deletar parceiro
-
-#### 4. Atualizar Dashboard Admin
-
-Modificar `src/pages/admin/AdminDashboard.tsx`:
-- Adicionar card "Gerenciar Parceiros"
-- Mostrar estatísticas de parceiros pendentes
-
-#### 5. Atualizar Rotas
-
-Modificar `src/App.tsx`:
-- Adicionar rota `/admin/parceiros` protegida para admin
-
-### Detalhes do Formulário de Cadastro
-
-```text
-+------------------------------------------+
-|        CADASTRAR MEU NEGÓCIO             |
-|------------------------------------------|
-| Nome do Negócio*: [____________]         |
-| Categoria*:       [Dropdown___v]         |
-| Descrição:        [textarea____]         |
-| Telefone/WhatsApp*:[____________]        |
-| Email:            [____________]         |
-| Instagram:        [____________]         |
-| Site:             [____________]         |
-| Endereço:         [____________]         |
-| Logo:             [Upload_____]          |
-|                                          |
-| [Enviar para Aprovação]                  |
-+------------------------------------------+
-```
-
-### Componente de Card do Parceiro
+Adicionar lógica de slideshow com React:
 
 ```typescript
-const ParceiroCard = ({ parceiro }) => (
-  <Card>
-    {parceiro.logo_url && (
-      <img src={parceiro.logo_url} className="h-32 w-full object-contain" />
-    )}
-    <CardHeader>
-      <Badge>{parceiro.categoria}</Badge>
-      <CardTitle>{parceiro.nome}</CardTitle>
-      {parceiro.descricao && (
-        <CardDescription>{parceiro.descricao}</CardDescription>
-      )}
-    </CardHeader>
-    <CardContent>
-      <div className="flex gap-2">
-        <Button variant="whatsapp">
-          <a href={`https://wa.me/${parceiro.telefone}`}>WhatsApp</a>
-        </Button>
-        {parceiro.instagram && (
-          <Button variant="outline">Instagram</Button>
-        )}
-      </div>
-    </CardContent>
-  </Card>
-);
+// Imports das 3 imagens
+import heroBg1 from "@/assets/hero-bg.jpg";
+import heroBg2 from "@/assets/hero-bg-2.jpg";
+import heroBg3 from "@/assets/hero-bg-3.png";
+
+const heroImages = [heroBg1, heroBg2, heroBg3];
+
+export function HeroSection() {
+  const [currentImage, setCurrentImage] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImage((prev) => (prev + 1) % heroImages.length);
+    }, 8000); // 8 segundos
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <section className="relative min-h-[90vh] overflow-hidden">
+      {/* Background Images com transição */}
+      {heroImages.map((image, index) => (
+        <div
+          key={index}
+          className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000
+            ${index === currentImage ? "opacity-100" : "opacity-0"}`}
+          style={{ backgroundImage: `url(${image})` }}
+        />
+      ))}
+      
+      {/* Overlay gradient (mantido) */}
+      <div className="absolute inset-0 bg-gradient-to-b from-primary/60 via-primary/40 to-background" />
+      
+      {/* Content (inalterado) */}
+      ...
+    </section>
+  );
+}
 ```
 
-### Arquivos a Criar
+### Detalhes Técnicos
 
-1. `src/pages/admin/AdminParceiros.tsx` - Gerenciamento de parceiros
+| Aspecto | Valor |
+|---------|-------|
+| Intervalo entre imagens | 8 segundos |
+| Duração da transição | 1 segundo (fade) |
+| Número de imagens | 3 |
+| Técnica | Múltiplas divs sobrepostas com opacity toggle |
+
+### Estrutura Visual
+
+```text
+┌─────────────────────────────────────────┐
+│  [Imagem 1] opacity: 1                  │
+│  [Imagem 2] opacity: 0                  │ ← Todas empilhadas
+│  [Imagem 3] opacity: 0                  │
+│  [Gradient Overlay]                     │
+│  [Conteúdo: Título + Busca]             │
+└─────────────────────────────────────────┘
+
+        ↓ Após 8 segundos ↓
+
+┌─────────────────────────────────────────┐
+│  [Imagem 1] opacity: 0                  │
+│  [Imagem 2] opacity: 1                  │ ← Imagem 2 visível
+│  [Imagem 3] opacity: 0                  │
+│  [Gradient Overlay]                     │
+│  [Conteúdo: Título + Busca]             │
+└─────────────────────────────────────────┘
+```
+
+### Arquivos a Criar/Copiar
+
+1. `src/assets/hero-bg-2.jpg` - Copiar imagem enviada (vista panorâmica)
+2. `src/assets/hero-bg-3.png` - Copiar imagem enviada (sol poente)
 
 ### Arquivos a Modificar
 
-1. `src/pages/Parceiros.tsx` - Adicionar listagem e formulário
-2. `src/pages/admin/AdminDashboard.tsx` - Adicionar link para parceiros
-3. `src/App.tsx` - Adicionar rota admin
-
-### Migração SQL
-
-```sql
--- Criar tabela parceiros
-CREATE TABLE public.parceiros (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  nome text NOT NULL,
-  categoria text NOT NULL,
-  descricao text,
-  telefone text NOT NULL,
-  email text,
-  instagram text,
-  site text,
-  endereco text,
-  logo_url text,
-  user_id uuid,
-  status text DEFAULT 'pendente' CHECK (status IN ('pendente', 'aprovado', 'rejeitado')),
-  destaque boolean DEFAULT false,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-
--- Habilitar RLS
-ALTER TABLE public.parceiros ENABLE ROW LEVEL SECURITY;
-
--- Políticas RLS
-CREATE POLICY "Anyone can view approved partners"
-ON public.parceiros FOR SELECT TO public
-USING (status = 'aprovado');
-
-CREATE POLICY "Users can view their own partners"
-ON public.parceiros FOR SELECT TO public
-USING (auth.uid() = user_id);
-
-CREATE POLICY "Authenticated users can create partners"
-ON public.parceiros FOR INSERT TO public
-WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Admins can view all partners"
-ON public.parceiros FOR SELECT TO public
-USING (has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Admins can update all partners"
-ON public.parceiros FOR UPDATE TO public
-USING (has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Admins can delete all partners"
-ON public.parceiros FOR DELETE TO public
-USING (has_role(auth.uid(), 'admin'));
-
--- Trigger para updated_at
-CREATE TRIGGER update_parceiros_updated_at
-  BEFORE UPDATE ON public.parceiros
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-```
+1. `src/components/HeroSection.tsx` - Adicionar lógica de slideshow
 
 ### Experiência do Usuário
 
-1. Visitante vê parceiros aprovados na página
-2. Para cadastrar, precisa estar logado
-3. Preenche formulário simples
-4. Recebe confirmação de que foi enviado para aprovação
-5. Admin aprova e parceiro aparece publicamente
-6. Parceiros destacados aparecem primeiro
-
-### Considerações de Segurança
-
-- RLS garante que apenas admins podem aprovar/rejeitar
-- Usuários só podem criar parceiros com seu próprio user_id
-- Upload de logo usa o storage bucket existente (ou novo bucket)
-- Validação de campos obrigatórios no frontend e backend
+- As imagens alternam de forma suave e elegante
+- O intervalo de 8 segundos permite que o usuário aprecie cada foto
+- A transição fade de 1 segundo é sutil e não distrai
+- O conteúdo (título, botões, busca) permanece estático e legível
+- O gradient overlay garante contraste adequado em todas as imagens
 
