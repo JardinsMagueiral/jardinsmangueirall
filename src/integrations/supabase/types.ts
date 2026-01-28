@@ -187,6 +187,60 @@ export type Database = {
           },
         ]
       }
+      parceiros: {
+        Row: {
+          categoria: string
+          created_at: string | null
+          descricao: string | null
+          destaque: boolean | null
+          email: string | null
+          endereco: string | null
+          id: string
+          instagram: string | null
+          logo_url: string | null
+          nome: string
+          site: string | null
+          status: string | null
+          telefone: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          categoria: string
+          created_at?: string | null
+          descricao?: string | null
+          destaque?: boolean | null
+          email?: string | null
+          endereco?: string | null
+          id?: string
+          instagram?: string | null
+          logo_url?: string | null
+          nome: string
+          site?: string | null
+          status?: string | null
+          telefone: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          categoria?: string
+          created_at?: string | null
+          descricao?: string | null
+          destaque?: boolean | null
+          email?: string | null
+          endereco?: string | null
+          id?: string
+          instagram?: string | null
+          logo_url?: string | null
+          nome?: string
+          site?: string | null
+          status?: string | null
+          telefone?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           cpf: string | null
