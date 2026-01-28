@@ -1,212 +1,178 @@
 
 
-## Plano: Ordenação de Fotos com Drag and Drop
+## Plano: Termo de Autorização antes do WhatsApp
 
 ### Objetivo
 
-Permitir que usuários e administradores reordenem as fotos dos imóveis através de arrastar e soltar (drag and drop), tanto para fotos existentes quanto para novas fotos sendo adicionadas.
+Adicionar uma etapa de aceite de termos legais antes do redirecionamento para o WhatsApp após o cadastro do imóvel. O usuário só poderá prosseguir para o WhatsApp após aceitar o termo.
 
-### Solução Técnica
+### Fluxo Atual
 
-Utilizarei a biblioteca **@dnd-kit** que é moderna, leve e bem mantida para implementar drag and drop em React. Esta biblioteca oferece:
-- Suporte a touch devices (mobile)
-- Acessibilidade (navegação por teclado)
-- Performance otimizada
-- API declarativa e fácil de usar
+```text
+1. Usuário preenche formulário
+2. Clica em "Cadastrar Imóvel"
+3. Imóvel é salvo no banco
+4. Dialog de sucesso aparece
+5. Usuário clica em "Ir para o WhatsApp"
+6. Redirecionado para WhatsApp
+```
 
-### Estrutura Visual
+### Novo Fluxo
+
+```text
+1. Usuário preenche formulário
+2. Clica em "Cadastrar Imóvel"
+3. Imóvel é salvo no banco
+4. Dialog de sucesso aparece COM termos
+5. Usuário lê os termos
+6. Marca checkbox "Li e aceito os termos"
+7. Botão "Ir para o WhatsApp" fica habilitado
+8. Usuário clica no botão
+9. Redirecionado para WhatsApp
+```
+
+### Estrutura Visual do Dialog
 
 ```text
 +------------------------------------------+
-|  Fotos                                   |
-|  Adicione até 10 fotos (3/10)            |
-|  Arraste para reordenar                  |
+|              [✓ Checkmark Icon]          |
+|                                          |
+|     Imóvel Cadastrado com Sucesso!       |
+|                                          |
+|  Seu imóvel foi enviado para aprovação.  |
+|                                          |
 +------------------------------------------+
+|  TERMOS DE AUTORIZAÇÃO                   |
+|  +------------------------------------+  |
+|  | 1ª) A presente autorização...      |  |
+|  | 2ª) Fica autorizada...             |  |
+|  | 3ª) Esta autorização é concedida...|  |
+|  | 4ª) O(a)(s) contratante(s)...      |  |
+|  | 5ª) As informações contidas...     |  |
+|  +------------------------------------+  |
 |                                          |
-|  [1] ≡  [2] ≡  [3] ≡  [+]               |
-|  foto   foto   foto   Adicionar          |
-|   ×      ×      ×                        |
+|  [ ] Li e aceito os termos de            |
+|      autorização acima                   |
 |                                          |
-|  ≡ = ícone de arrastar (drag handle)    |
-|  × = botão de remover                    |
+|       [Ir para o WhatsApp] (disabled)    |
 +------------------------------------------+
 ```
 
 ### Mudanças Necessárias
 
-#### 1. Instalar Dependência
+#### Modificar ImovelForm.tsx
 
-```bash
-npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
-```
-
-#### 2. Criar Componente SortablePhotoItem
-
-Criar `src/components/imoveis/SortablePhotoItem.tsx`:
-- Componente individual para cada foto
-- Integrado com useSortable do dnd-kit
-- Exibe ícone de arrastar (GripVertical)
-- Mantém botão de remover
-
-#### 3. Atualizar ImovelForm
-
-Modificar `src/components/imoveis/ImovelForm.tsx`:
-
-**Novos estados e tipos:**
+1. **Adicionar novo estado** para controlar o aceite dos termos:
 ```typescript
-interface PhotoItem {
-  id: string;
-  url: string;
-  type: 'existing' | 'new';
-  file?: File;
-}
-
-// Estado unificado para todas as fotos (existentes + novas)
-const [allPhotos, setAllPhotos] = useState<PhotoItem[]>([]);
+const [termsAccepted, setTermsAccepted] = useState(false);
 ```
 
-**Implementar DndContext e SortableContext:**
+2. **Resetar estado** quando dialog fecha:
 ```typescript
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
-
-// No render:
-<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-  <SortableContext items={allPhotos.map(p => p.id)} strategy={rectSortingStrategy}>
-    {allPhotos.map((photo, index) => (
-      <SortablePhotoItem 
-        key={photo.id}
-        photo={photo}
-        index={index}
-        onRemove={handleRemovePhoto}
-        isDeleting={deletingPhotoId === photo.id}
-      />
-    ))}
-  </SortableContext>
-</DndContext>
+// No handleWhatsAppRedirect e onOpenChange do Dialog
+setTermsAccepted(false);
 ```
 
-**Função de reordenação:**
-```typescript
-const handleDragEnd = (event) => {
-  const { active, over } = event;
-  if (active.id !== over.id) {
-    setAllPhotos((items) => {
-      const oldIndex = items.findIndex(item => item.id === active.id);
-      const newIndex = items.findIndex(item => item.id === over.id);
-      return arrayMove(items, oldIndex, newIndex);
-    });
-  }
-};
+3. **Expandir o Dialog de sucesso** para incluir:
+   - ScrollArea com os termos legais
+   - Checkbox para aceite
+   - Botão desabilitado até aceitar
+
+### Termo Legal (Conteúdo)
+
+```text
+TERMOS DE AUTORIZAÇÃO
+
+1ª) A presente autorização, SEM EXCLUSIVIDADE, tem seu amparo na Lei 6.530, Art. 20, Item III e Artigos 722 a 729 do Código Civil Brasileiro.
+
+2ª) Fica autorizada a colocação de placas, publicação de anúncios, a promoção e a intermediação da venda do imóvel acima descrito.
+
+3ª) Esta autorização é concedida pelo prazo de 90 dias a contar desta data, prorrogada automaticamente, caso o(a)(s) contratante(s), após o término do prazo, não se manifeste(m) expressamente por escrito.
+
+4ª) O(a)(s) contratante(s) se compromete(m) a pagar os honorários de 5%, desde que a compra, venda ou permuta, ora iniciada, intermediada por esta empresa, associadas ou associados, ocorra dentro do prazo acima estipulado, ou na sua prorrogação.
+
+5ª) As informações contidas neste documento são de inteira responsabilidade do(a)(s) proprietário(a)(s) do imóvel.
 ```
-
-#### 4. Atualizar Lógica de Salvamento
-
-**Ao salvar o imóvel:**
-1. Para fotos existentes: Atualizar a coluna `ordem` no banco
-2. Para novas fotos: Fazer upload e inserir com a ordem correta
-
-```typescript
-const savePhotosOrder = async (imovelId: string) => {
-  // Atualizar ordem das fotos existentes
-  for (let i = 0; i < allPhotos.length; i++) {
-    const photo = allPhotos[i];
-    if (photo.type === 'existing') {
-      await supabase
-        .from("imovel_fotos")
-        .update({ ordem: i })
-        .eq("id", photo.id);
-    }
-  }
-  
-  // Upload e inserção das novas fotos com ordem correta
-  for (let i = 0; i < allPhotos.length; i++) {
-    const photo = allPhotos[i];
-    if (photo.type === 'new' && photo.file) {
-      // upload para storage
-      // inserir no banco com ordem: i
-    }
-  }
-};
-```
-
-### Arquivos a Criar
-
-1. `src/components/imoveis/SortablePhotoItem.tsx` - Componente de foto arrastável
-
-### Arquivos a Modificar
-
-1. `src/components/imoveis/ImovelForm.tsx` - Adicionar lógica de drag and drop
-
-### Experiência do Usuário
-
-1. Ao adicionar fotos, elas aparecem em um grid
-2. Cada foto mostra um ícone de arrastar (≡) no canto superior esquerdo
-3. O usuário pode clicar e arrastar para reordenar
-4. A primeira foto (posição 0) será a foto principal/capa do imóvel
-5. Ao salvar, a ordem é persistida no banco de dados
-6. Funciona tanto em desktop quanto em dispositivos móveis
 
 ### Detalhes Técnicos
 
-**SortablePhotoItem.tsx:**
+#### Componentes a Importar
+
 ```typescript
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, X, Loader2 } from 'lucide-react';
-
-interface Props {
-  photo: PhotoItem;
-  index: number;
-  onRemove: (photo: PhotoItem) => void;
-  isDeleting: boolean;
-}
-
-export function SortablePhotoItem({ photo, index, onRemove, isDeleting }: Props) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: photo.id,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} className="relative aspect-square">
-      {/* Drag Handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="absolute left-1 top-1 z-10 cursor-grab bg-black/50 rounded p-1"
-      >
-        <GripVertical className="h-4 w-4 text-white" />
-      </button>
-      
-      {/* Indicador de foto principal */}
-      {index === 0 && (
-        <span className="absolute left-8 top-1 z-10 bg-primary text-white text-xs px-2 py-0.5 rounded">
-          Capa
-        </span>
-      )}
-      
-      {/* Imagem */}
-      <img src={photo.url} className="h-full w-full rounded-lg object-cover" />
-      
-      {/* Botão remover */}
-      <Button onClick={() => onRemove(photo)} disabled={isDeleting}>
-        {isDeleting ? <Loader2 /> : <X />}
-      </Button>
-    </div>
-  );
-}
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 ```
+
+#### Novo Dialog de Sucesso
+
+```typescript
+<Dialog open={showSuccessDialog} onOpenChange={(open) => {
+  setShowSuccessDialog(open);
+  if (!open) setTermsAccepted(false);
+}}>
+  <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden">
+    <DialogHeader className="space-y-4">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+        <CheckCircle className="h-10 w-10 text-primary" />
+      </div>
+      <DialogTitle className="text-xl text-center">
+        Imóvel Cadastrado com Sucesso!
+      </DialogTitle>
+      <DialogDescription className="text-base text-center">
+        Seu imóvel foi enviado para aprovação. Para prosseguir, leia e aceite os termos abaixo.
+      </DialogDescription>
+    </DialogHeader>
+    
+    {/* Termos em ScrollArea */}
+    <div className="mt-4">
+      <h4 className="font-semibold mb-2">Termos de Autorização</h4>
+      <ScrollArea className="h-48 w-full rounded-md border p-4 text-sm text-muted-foreground">
+        <div className="space-y-3">
+          <p>1ª) A presente autorização, SEM EXCLUSIVIDADE, tem seu amparo na Lei 6.530, Art. 20, Item III e Artigos 722 a 729 do Código Civil Brasileiro.</p>
+          <p>2ª) Fica autorizada a colocação de placas, publicação de anúncios, a promoção e a intermediação da venda do imóvel acima descrito.</p>
+          <p>3ª) Esta autorização é concedida pelo prazo de 90 dias a contar desta data, prorrogada automaticamente, caso o(a)(s) contratante(s), após o término do prazo, não se manifeste(m) expressamente por escrito.</p>
+          <p>4ª) O(a)(s) contratante(s) se compromete(m) a pagar os honorários de 5%, desde que a compra, venda ou permuta, ora iniciada, intermediada por esta empresa, associadas ou associados, ocorra dentro do prazo acima estipulado, ou na sua prorrogação.</p>
+          <p>5ª) As informações contidas neste documento são de inteira responsabilidade do(a)(s) proprietário(a)(s) do imóvel.</p>
+        </div>
+      </ScrollArea>
+    </div>
+
+    {/* Checkbox de aceite */}
+    <div className="flex items-start gap-3 mt-4">
+      <Checkbox
+        id="terms"
+        checked={termsAccepted}
+        onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+      />
+      <label htmlFor="terms" className="text-sm font-medium leading-none cursor-pointer">
+        Li e aceito os termos de autorização acima
+      </label>
+    </div>
+
+    <DialogFooter className="mt-4 sm:justify-center">
+      <Button 
+        variant="whatsapp" 
+        onClick={handleWhatsAppRedirect} 
+        disabled={!termsAccepted}
+        className="w-full sm:w-auto"
+      >
+        <MessageCircle className="mr-2 h-4 w-4" />
+        Ir para o WhatsApp
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+```
+
+### Arquivos a Modificar
+
+1. `src/components/imoveis/ImovelForm.tsx` - Adicionar termos no dialog
 
 ### Considerações
 
-- A tabela `imovel_fotos` já possui a coluna `ordem`, então não precisa de migração
-- O drag and drop funciona em touch screens automaticamente
-- A foto na posição 0 é considerada a foto principal/capa
-- A experiência visual inclui feedback durante o arrasto (opacidade reduzida)
+- O termo só aparece no cadastro de imóveis por usuários (não admins)
+- O checkbox deve ser marcado para habilitar o botão
+- O estado é resetado quando o dialog fecha
+- O ScrollArea permite visualizar todo o conteúdo mesmo em telas menores
+- O texto dos termos é apresentado de forma clara e legível
 
