@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, DollarSign, Bed, Bath } from "lucide-react";
+import { Search, DollarSign, Bed, Bath, Home, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export function PropertySearch() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [categoria, setCategoria] = useState("");
+  const [operacao, setOperacao] = useState("");
   const [precoMin, setPrecoMin] = useState("");
   const [precoMax, setPrecoMax] = useState("");
   const [quartos, setQuartos] = useState("");
@@ -16,6 +18,8 @@ export function PropertySearch() {
   const handleSearch = () => {
     const params = new URLSearchParams();
     if (search) params.set("search", search);
+    if (categoria && categoria !== "all") params.set("categoria", categoria);
+    if (operacao && operacao !== "all") params.set("operacao", operacao);
     if (precoMin) params.set("precoMin", precoMin);
     if (precoMax) params.set("precoMax", precoMax);
     if (quartos && quartos !== "all") params.set("quartos", quartos);
@@ -39,6 +43,32 @@ export function PropertySearch() {
             placeholder="Localização"
             className="pl-10"
           />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select value={categoria} onValueChange={setCategoria}>
+            <SelectTrigger>
+              <Home className="mr-2 h-5 w-5 text-muted-foreground" />
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="residencial">Residencial</SelectItem>
+              <SelectItem value="comercial">Comercial</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={operacao} onValueChange={setOperacao}>
+            <SelectTrigger>
+              <Key className="mr-2 h-5 w-5 text-muted-foreground" />
+              <SelectValue placeholder="Operação" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="venda">Venda</SelectItem>
+              <SelectItem value="aluguel">Aluguel</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
