@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Building, MessageCircle, Key, Loader2, Bed, Bath, Car, Maximize, Search, Star, DollarSign } from "lucide-react";
+import { Building, MessageCircle, Key, Loader2, Bed, Bath, Car, Maximize, Search, Star, DollarSign, Home } from "lucide-react";
 
 interface Imovel {
   id: string;
@@ -30,8 +30,8 @@ const Imoveis = () => {
   const [searchParams] = useSearchParams();
   const [imoveis, setImoveis] = useState<Imovel[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tipoFilter, setTipoFilter] = useState("all");
-  const [operacaoFilter, setOperacaoFilter] = useState("all");
+  const [categoriaFilter, setCategoriaFilter] = useState(searchParams.get("categoria") || "all");
+  const [operacaoFilter, setOperacaoFilter] = useState(searchParams.get("operacao") || "all");
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [precoMin, setPrecoMin] = useState(searchParams.get("precoMin") || "");
   const [precoMax, setPrecoMax] = useState(searchParams.get("precoMax") || "");
@@ -81,7 +81,13 @@ const Imoveis = () => {
   };
 
   const filteredImoveis = imoveis.filter((imovel) => {
-    const matchesTipo = tipoFilter === "all" || imovel.tipo === tipoFilter;
+    const tiposResidenciais = ["casa", "apartamento"];
+    const tiposComerciais = ["comercial", "terreno"];
+    
+    const matchesCategoria = 
+      categoriaFilter === "all" ||
+      (categoriaFilter === "residencial" && tiposResidenciais.includes(imovel.tipo)) ||
+      (categoriaFilter === "comercial" && tiposComerciais.includes(imovel.tipo));
     const matchesOperacao = operacaoFilter === "all" || imovel.operacao === operacaoFilter;
     const matchesSearch = searchQuery === "" || 
       imovel.endereco.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -92,7 +98,7 @@ const Imoveis = () => {
       (quartosFilter === "4" ? imovel.quartos >= 4 : imovel.quartos === Number(quartosFilter));
     const matchesBanheiros = banheirosFilter === "all" || 
       (banheirosFilter === "3" ? imovel.banheiros >= 3 : imovel.banheiros === Number(banheirosFilter));
-    return matchesTipo && matchesOperacao && matchesSearch && matchesPrecoMin && matchesPrecoMax && matchesQuartos && matchesBanheiros;
+    return matchesCategoria && matchesOperacao && matchesSearch && matchesPrecoMin && matchesPrecoMax && matchesQuartos && matchesBanheiros;
   });
 
   return (
@@ -141,24 +147,24 @@ const Imoveis = () => {
                       className="pl-10"
                     />
                   </div>
-                  <Select value={tipoFilter} onValueChange={setTipoFilter}>
+                  <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
                     <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Tipo" />
+                      <Home className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <SelectValue placeholder="Categoria" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todos os tipos</SelectItem>
-                      <SelectItem value="casa">Casa</SelectItem>
-                      <SelectItem value="apartamento">Apartamento</SelectItem>
-                      <SelectItem value="terreno">Terreno</SelectItem>
+                      <SelectItem value="all">Todas</SelectItem>
+                      <SelectItem value="residencial">Residencial</SelectItem>
                       <SelectItem value="comercial">Comercial</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={operacaoFilter} onValueChange={setOperacaoFilter}>
                     <SelectTrigger className="w-40">
+                      <Key className="mr-2 h-4 w-4 text-muted-foreground" />
                       <SelectValue placeholder="Operação" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Venda e Aluguel</SelectItem>
+                      <SelectItem value="all">Todas</SelectItem>
                       <SelectItem value="venda">Venda</SelectItem>
                       <SelectItem value="aluguel">Aluguel</SelectItem>
                     </SelectContent>
