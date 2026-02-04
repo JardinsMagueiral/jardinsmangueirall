@@ -1,149 +1,202 @@
 
 
-## Plano: Filtros de Categoria e Operação
-
-### Objetivo
-
-Simplificar os filtros de busca de imóveis usando duas categorias principais:
-- **Categoria**: Residencial ou Comercial
-- **Operação**: Aluguel ou Venda
-
-### Mudança Visual
-
-```text
-ANTES (filtro atual):
-┌──────────────────────────────────────────────────────┐
-│ [Busca...]  [Todos os tipos ▼]  [Venda e Aluguel ▼] │
-│             - Casa                                   │
-│             - Apartamento                            │
-│             - Terreno                                │
-│             - Comercial                              │
-└──────────────────────────────────────────────────────┘
-
-DEPOIS (novo filtro):
-┌──────────────────────────────────────────────────────┐
-│ [Busca...]  [Categoria ▼]      [Operação ▼]         │
-│             - Todos             - Todos              │
-│             - Residencial       - Venda              │
-│             - Comercial         - Aluguel            │
-└──────────────────────────────────────────────────────┘
-```
-
-### Mapeamento de Categorias
-
-| Categoria | Tipos incluídos |
-|-----------|-----------------|
-| Residencial | casa, apartamento |
-| Comercial | comercial, terreno |
-
-### Arquivos a Modificar
-
-1. **src/components/PropertySearch.tsx** (busca na homepage)
-   - Adicionar filtro de categoria (residencial/comercial)
-   - Adicionar filtro de operação (venda/aluguel)
-   - Passar esses filtros como query params para /imoveis
-
-2. **src/pages/Imoveis.tsx** (página de listagem)
-   - Substituir filtro de tipo individual por filtro de categoria
-   - Ler parâmetros de categoria e operação da URL
-   - Ajustar lógica de filtragem para agrupar tipos
-
-### Mudanças no PropertySearch.tsx
-
-Adicionar dois novos selects:
-
-```typescript
-// Novo estado
-const [categoria, setCategoria] = useState("");
-const [operacao, setOperacao] = useState("");
-
-// Novo select de Categoria
-<Select value={categoria} onValueChange={setCategoria}>
-  <SelectTrigger>
-    <Home className="mr-2 h-5 w-5" />
-    <SelectValue placeholder="Categoria" />
-  </SelectTrigger>
-  <SelectContent>
-    <SelectItem value="all">Todos</SelectItem>
-    <SelectItem value="residencial">Residencial</SelectItem>
-    <SelectItem value="comercial">Comercial</SelectItem>
-  </SelectContent>
-</Select>
-
-// Novo select de Operação
-<Select value={operacao} onValueChange={setOperacao}>
-  <SelectTrigger>
-    <Key className="mr-2 h-5 w-5" />
-    <SelectValue placeholder="Operação" />
-  </SelectTrigger>
-  <SelectContent>
-    <SelectItem value="all">Todos</SelectItem>
-    <SelectItem value="venda">Venda</SelectItem>
-    <SelectItem value="aluguel">Aluguel</SelectItem>
-  </SelectContent>
-</Select>
-```
-
-### Mudanças no Imoveis.tsx
-
-Atualizar a lógica de filtragem:
-
-```typescript
-// Estado para categoria
-const [categoriaFilter, setCategoriaFilter] = useState(
-  searchParams.get("categoria") || "all"
-);
-
-// Lógica de filtragem atualizada
-const filteredImoveis = imoveis.filter((imovel) => {
-  // Categoria: residencial = casa/apartamento, comercial = comercial/terreno
-  const tiposResidenciais = ["casa", "apartamento"];
-  const tiposComerciais = ["comercial", "terreno"];
-  
-  const matchesCategoria = 
-    categoriaFilter === "all" ||
-    (categoriaFilter === "residencial" && tiposResidenciais.includes(imovel.tipo)) ||
-    (categoriaFilter === "comercial" && tiposComerciais.includes(imovel.tipo));
-  
-  const matchesOperacao = operacaoFilter === "all" || imovel.operacao === operacaoFilter;
-  
-  // ... resto dos filtros
-});
-```
-
-### Detalhes Técnicos
-
-**Parâmetros de URL:**
-- `categoria=residencial` ou `categoria=comercial`
-- `operacao=venda` ou `operacao=aluguel`
-
-**Exemplo de URL:**
-```
-/imoveis?categoria=residencial&operacao=aluguel
-```
-
-### Layout do Formulário de Busca
-
-```text
-┌────────────────────────────────────────────────┐
-│        Encontre O Seu Sonho                    │
-├────────────────────────────────────────────────┤
-│ [🔍 Localização                           ]    │
-│                                                │
-│ [🏠 Categoria ▼]     [🔑 Operação ▼]          │
-│                                                │
-│ [💲 Valor mín.]      [💲 Valor máx.]          │
-│                                                │
-│ [🛏️ Quartos ▼]       [🚿 Banheiros ▼]         │
-│                                                │
-│ [        🔍 Buscar Imóveis              ]     │
-└────────────────────────────────────────────────┘
-```
+## Plano: Melhorias no Sistema de Busca, Formulários e Admin
 
 ### Resumo das Mudanças
 
+1. **Filtro de tipo de imóvel** - Adicionar opções: Casa, Apartamento, Terreno, Loja
+2. **Visibilidade da senha** - Botão "olho mágico" nos campos de senha
+3. **Entrada de preço formatada** - Aceitar valores com pontos (200.000)
+4. **Lista de clientes no admin** - Ver nome, telefone e email dos clientes
+
+---
+
+### 1. Filtro de Tipo de Imóvel
+
+**Arquivos a modificar:**
+- `src/components/PropertySearch.tsx`
+- `src/pages/Imoveis.tsx`
+
+**Mudança no layout:**
+
+```text
+ATUAL:
+[Categoria ▼]     [Operação ▼]
+- Residencial     - Venda
+- Comercial       - Aluguel
+
+NOVO:
+[Tipo ▼]          [Operação ▼]
+- Todos           - Venda
+- Casa            - Aluguel
+- Apartamento
+- Terreno
+- Loja
+```
+
+**Lógica de filtragem:**
+```typescript
+// Novo estado para tipo
+const [tipoFilter, setTipoFilter] = useState(searchParams.get("tipo") || "all");
+
+// Filtragem por tipo específico
+const matchesTipo = tipoFilter === "all" || imovel.tipo === tipoFilter;
+```
+
+**Nota:** "Loja" será mapeado para "comercial" no banco (valor existente).
+
+---
+
+### 2. Toggle de Visibilidade da Senha
+
+**Arquivos a modificar:**
+- `src/pages/auth/Cadastro.tsx`
+- `src/pages/auth/Login.tsx`
+- `src/pages/auth/RedefinirSenha.tsx`
+
+**Implementação:**
+
+Adicionar estados para controlar visibilidade:
+```typescript
+const [showPassword, setShowPassword] = useState(false);
+const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+```
+
+Substituir o Input de senha por um Input com botão:
+```tsx
+<div className="relative">
+  <Input
+    id="password"
+    type={showPassword ? "text" : "password"}
+    placeholder="••••••••"
+    className="pr-10"
+    {...register("password")}
+  />
+  <button
+    type="button"
+    onClick={() => setShowPassword(!showPassword)}
+    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+  >
+    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+  </button>
+</div>
+```
+
+---
+
+### 3. Entrada de Preço Formatada
+
+**Arquivo a modificar:**
+- `src/components/imoveis/ImovelForm.tsx`
+
+**Problema atual:**
+O campo de preço usa `type="number"`, que não aceita pontos como separador de milhar (200.000).
+
+**Solução:**
+Criar um componente de input de moeda que:
+- Exibe o valor formatado (R$ 200.000,00)
+- Remove formatação antes de enviar ao formulário
+- Aceita digitação natural com pontos ou vírgulas
+
+**Implementação:**
+```typescript
+// Estado para valor formatado
+const [precoFormatado, setPrecoFormatado] = useState("");
+
+// Função para formatar
+const formatarPreco = (valor: string) => {
+  // Remove tudo exceto números
+  const numeros = valor.replace(/\D/g, "");
+  // Converte para número
+  const numero = parseInt(numeros) || 0;
+  // Formata como moeda brasileira
+  return numero.toLocaleString("pt-BR");
+};
+
+// Ao mudar o input
+const handlePrecoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const valorDigitado = e.target.value;
+  const formatado = formatarPreco(valorDigitado);
+  setPrecoFormatado(formatado);
+  
+  // Atualiza o valor real no formulário (apenas números)
+  const valorNumerico = parseInt(valorDigitado.replace(/\D/g, "")) || 0;
+  setValue("preco", valorNumerico);
+};
+```
+
+**Campo no formulário:**
+```tsx
+<Input
+  id="preco"
+  type="text"
+  inputMode="numeric"
+  placeholder="200.000"
+  value={precoFormatado}
+  onChange={handlePrecoChange}
+/>
+```
+
+Mesma lógica aplicada para campos: condomínio e IPTU.
+
+---
+
+### 4. Lista de Clientes no Admin
+
+**Opção A: Adicionar à página existente de imóveis**
+
+A página `AdminImoveis.tsx` já mostra nome e telefone do anunciante. Vou adicionar o email também:
+
+```tsx
+// Mudança na exibição
+{imovel.profiles && (
+  <div className="mt-2 text-sm text-muted-foreground">
+    <p><strong>Anunciante:</strong> {imovel.profiles.nome}</p>
+    <p><strong>Telefone:</strong> {imovel.profiles.telefone}</p>
+    <p><strong>Email:</strong> {imovel.profiles.email}</p>
+  </div>
+)}
+```
+
+**Opção B: Nova página dedicada de clientes**
+
+Criar nova página `/admin/clientes` que lista todos os clientes cadastrados:
+
+| Nome | Email | Telefone | Imóveis | Ações |
+|------|-------|----------|---------|-------|
+| João Silva | joao@email.com | (61) 99999-9999 | 2 | Ver |
+
+**Recomendação:** Começar com a Opção A (mais simples), pois já existe a estrutura para mostrar dados do cliente junto com o imóvel.
+
+---
+
+### Resumo de Arquivos a Modificar
+
 | Arquivo | Mudança |
 |---------|---------|
-| PropertySearch.tsx | Adicionar filtros categoria e operação |
-| Imoveis.tsx | Substituir filtro tipo por categoria, ajustar lógica |
+| `src/components/PropertySearch.tsx` | Substituir categoria por tipo específico |
+| `src/pages/Imoveis.tsx` | Substituir filtro categoria por tipo |
+| `src/pages/auth/Cadastro.tsx` | Adicionar toggle de senha |
+| `src/pages/auth/Login.tsx` | Adicionar toggle de senha |
+| `src/pages/auth/RedefinirSenha.tsx` | Adicionar toggle de senha |
+| `src/components/imoveis/ImovelForm.tsx` | Formatação de preço com pontos |
+| `src/pages/admin/AdminImoveis.tsx` | Mostrar email do cliente |
+
+---
+
+### Detalhes Técnicos
+
+**Mapeamento de tipos:**
+- Casa → `casa`
+- Apartamento → `apartamento`
+- Terreno → `terreno`
+- Loja → `comercial` (usa o tipo existente no banco)
+
+**Ícones a importar:**
+```typescript
+import { Eye, EyeOff } from "lucide-react";
+```
+
+**Validação de preço:**
+O schema Zod continuará validando como número, mas receberá o valor limpo (sem formatação).
 
