@@ -8,7 +8,7 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Home, CheckCircle, XCircle, Clock, Building, CalendarDays, Handshake } from "lucide-react";
+import { Loader2, Plus, Home, CheckCircle, XCircle, Clock, Building, CalendarDays, Handshake, Users } from "lucide-react";
 
 interface Stats {
   total: number;
@@ -200,6 +200,23 @@ export default function AdminDashboard() {
                 <CardContent>
                   <Button asChild className="w-full">
                     <Link to="/admin/parceiros">Ver Parceiros</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Clientes Cadastrados
+                  </CardTitle>
+                  <CardDescription>
+                    Ver todos os usuários cadastrados no site
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button asChild className="w-full">
+                    <Link to="/admin/clientes">Ver Clientes</Link>
                   </Button>
                 </CardContent>
               </Card>
