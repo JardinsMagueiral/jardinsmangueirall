@@ -30,8 +30,8 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/morar-&-viver" className="hover:opacity-100">
-                  Imóveis
+                <Link to="/imoveis" className="hover:opacity-100">
+                  Morar & Viver
                 </Link>
               </li>
               <li>
