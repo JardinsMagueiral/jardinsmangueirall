@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export function PropertySearch() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [categoria, setCategoria] = useState("");
+  const [tipo, setTipo] = useState("");
   const [operacao, setOperacao] = useState("");
   const [precoMin, setPrecoMin] = useState("");
   const [precoMax, setPrecoMax] = useState("");
@@ -18,7 +18,7 @@ export function PropertySearch() {
   const handleSearch = () => {
     const params = new URLSearchParams();
     if (search) params.set("search", search);
-    if (categoria && categoria !== "all") params.set("categoria", categoria);
+    if (tipo && tipo !== "all") params.set("tipo", tipo);
     if (operacao && operacao !== "all") params.set("operacao", operacao);
     if (precoMin) params.set("precoMin", precoMin);
     if (precoMax) params.set("precoMax", precoMax);
@@ -46,15 +46,17 @@ export function PropertySearch() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Select value={categoria} onValueChange={setCategoria}>
+          <Select value={tipo} onValueChange={setTipo}>
             <SelectTrigger>
               <Home className="mr-2 h-5 w-5 text-muted-foreground" />
-              <SelectValue placeholder="Categoria" />
+              <SelectValue placeholder="Tipo de Imóvel" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="residencial">Residencial</SelectItem>
-              <SelectItem value="comercial">Comercial</SelectItem>
+              <SelectItem value="casa">Casa</SelectItem>
+              <SelectItem value="apartamento">Apartamento</SelectItem>
+              <SelectItem value="terreno">Terreno</SelectItem>
+              <SelectItem value="comercial">Loja</SelectItem>
             </SelectContent>
           </Select>
 

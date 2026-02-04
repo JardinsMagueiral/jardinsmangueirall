@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, KeyRound, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, KeyRound, CheckCircle, XCircle, Eye, EyeOff } from "lucide-react";
 
 const redefinirSenhaSchema = z.object({
   password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
@@ -28,6 +28,8 @@ export default function RedefinirSenha() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [hasValidSession, setHasValidSession] = useState<boolean | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -194,24 +196,44 @@ export default function RedefinirSenha() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="password">Nova Senha</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="••••••••"
-                      {...register("password")}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        className="pr-10"
+                        {...register("password")}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                     {errors.password && (
                       <p className="text-sm text-destructive">{errors.password.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="••••••••"
-                      {...register("confirmPassword")}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        className="pr-10"
+                        {...register("confirmPassword")}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                     {errors.confirmPassword && (
                       <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
                     )}

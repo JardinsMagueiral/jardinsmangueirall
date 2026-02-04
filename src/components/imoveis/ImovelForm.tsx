@@ -68,6 +68,12 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [savedImovelData, setSavedImovelData] = useState<ImovelFormData | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  
+  // Estados para formatação de valores monetários
+  const [precoFormatado, setPrecoFormatado] = useState("");
+  const [condominioFormatado, setCondominioFormatado] = useState("");
+  const [iptuFormatado, setIptuFormatado] = useState("");
+  
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -124,6 +130,36 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
     navigate("/minha-conta");
   };
 
+  const formatarMoeda = (valor: string): string => {
+    const numeros = valor.replace(/\D/g, "");
+    const numero = parseInt(numeros) || 0;
+    return numero.toLocaleString("pt-BR");
+  };
+
+  const handlePrecoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valorDigitado = e.target.value;
+    const formatado = formatarMoeda(valorDigitado);
+    setPrecoFormatado(formatado);
+    const valorNumerico = parseInt(valorDigitado.replace(/\D/g, "")) || 0;
+    setValue("preco", valorNumerico, { shouldValidate: true });
+  };
+
+  const handleCondominioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valorDigitado = e.target.value;
+    const formatado = formatarMoeda(valorDigitado);
+    setCondominioFormatado(formatado);
+    const valorNumerico = parseInt(valorDigitado.replace(/\D/g, "")) || 0;
+    setValue("condominio", valorNumerico);
+  };
+
+  const handleIptuChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valorDigitado = e.target.value;
+    const formatado = formatarMoeda(valorDigitado);
+    setIptuFormatado(formatado);
+    const valorNumerico = parseInt(valorDigitado.replace(/\D/g, "")) || 0;
+    setValue("iptu", valorNumerico);
+  };
+
   const {
     register,
     handleSubmit,
@@ -152,6 +188,19 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
       aceita_pets: initialData?.aceita_pets || false,
     },
   });
+
+  // Inicializar valores formatados quando tiver dados iniciais
+  useEffect(() => {
+    if (initialData?.preco) {
+      setPrecoFormatado(initialData.preco.toLocaleString("pt-BR"));
+    }
+    if (initialData?.condominio) {
+      setCondominioFormatado(initialData.condominio.toLocaleString("pt-BR"));
+    }
+    if (initialData?.iptu) {
+      setIptuFormatado(initialData.iptu.toLocaleString("pt-BR"));
+    }
+  }, [initialData]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -517,11 +566,11 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
             <Label htmlFor="preco">Preço (R$)</Label>
             <Input
               id="preco"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0,00"
-              {...register("preco")}
+              type="text"
+              inputMode="numeric"
+              placeholder="200.000"
+              value={precoFormatado}
+              onChange={handlePrecoChange}
             />
             {errors.preco && (
               <p className="text-sm text-destructive">{errors.preco.message}</p>
@@ -531,22 +580,22 @@ export function ImovelForm({ isAdmin = false, initialData, existingPhotos: initi
             <Label htmlFor="condominio">Condomínio (R$)</Label>
             <Input
               id="condominio"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0,00"
-              {...register("condominio")}
+              type="text"
+              inputMode="numeric"
+              placeholder="500"
+              value={condominioFormatado}
+              onChange={handleCondominioChange}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="iptu">IPTU (R$)</Label>
             <Input
               id="iptu"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0,00"
-              {...register("iptu")}
+              type="text"
+              inputMode="numeric"
+              placeholder="150"
+              value={iptuFormatado}
+              onChange={handleIptuChange}
             />
           </div>
         </CardContent>
