@@ -30,7 +30,7 @@ const Imoveis = () => {
   const [searchParams] = useSearchParams();
   const [imoveis, setImoveis] = useState<Imovel[]>([]);
   const [loading, setLoading] = useState(true);
-  const [categoriaFilter, setCategoriaFilter] = useState(searchParams.get("categoria") || "all");
+  const [tipoFilter, setTipoFilter] = useState(searchParams.get("tipo") || "all");
   const [operacaoFilter, setOperacaoFilter] = useState(searchParams.get("operacao") || "all");
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [precoMin, setPrecoMin] = useState(searchParams.get("precoMin") || "");
@@ -81,13 +81,7 @@ const Imoveis = () => {
   };
 
   const filteredImoveis = imoveis.filter((imovel) => {
-    const tiposResidenciais = ["casa", "apartamento"];
-    const tiposComerciais = ["comercial", "terreno"];
-    
-    const matchesCategoria = 
-      categoriaFilter === "all" ||
-      (categoriaFilter === "residencial" && tiposResidenciais.includes(imovel.tipo)) ||
-      (categoriaFilter === "comercial" && tiposComerciais.includes(imovel.tipo));
+    const matchesTipo = tipoFilter === "all" || imovel.tipo === tipoFilter;
     const matchesOperacao = operacaoFilter === "all" || imovel.operacao === operacaoFilter;
     const matchesSearch = searchQuery === "" || 
       imovel.endereco.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -98,7 +92,7 @@ const Imoveis = () => {
       (quartosFilter === "4" ? imovel.quartos >= 4 : imovel.quartos === Number(quartosFilter));
     const matchesBanheiros = banheirosFilter === "all" || 
       (banheirosFilter === "3" ? imovel.banheiros >= 3 : imovel.banheiros === Number(banheirosFilter));
-    return matchesCategoria && matchesOperacao && matchesSearch && matchesPrecoMin && matchesPrecoMax && matchesQuartos && matchesBanheiros;
+    return matchesTipo && matchesOperacao && matchesSearch && matchesPrecoMin && matchesPrecoMax && matchesQuartos && matchesBanheiros;
   });
 
   return (
@@ -147,15 +141,17 @@ const Imoveis = () => {
                       className="pl-10"
                     />
                   </div>
-                  <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
+                  <Select value={tipoFilter} onValueChange={setTipoFilter}>
                     <SelectTrigger className="w-40">
                       <Home className="mr-2 h-4 w-4 text-muted-foreground" />
-                      <SelectValue placeholder="Categoria" />
+                      <SelectValue placeholder="Tipo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todas</SelectItem>
-                      <SelectItem value="residencial">Residencial</SelectItem>
-                      <SelectItem value="comercial">Comercial</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="casa">Casa</SelectItem>
+                      <SelectItem value="apartamento">Apartamento</SelectItem>
+                      <SelectItem value="terreno">Terreno</SelectItem>
+                      <SelectItem value="comercial">Loja</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={operacaoFilter} onValueChange={setOperacaoFilter}>
