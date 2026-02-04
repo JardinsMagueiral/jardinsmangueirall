@@ -1,156 +1,23 @@
 
 
-## Plano: Melhorias no Sistema de Busca, Formulários e Admin
+## Plano: Página de Clientes no Admin
 
-### Resumo das Mudanças
+### Objetivo
 
-1. **Filtro de tipo de imóvel** - Adicionar opções: Casa, Apartamento, Terreno, Loja
-2. **Visibilidade da senha** - Botão "olho mágico" nos campos de senha
-3. **Entrada de preço formatada** - Aceitar valores com pontos (200.000)
-4. **Lista de clientes no admin** - Ver nome, telefone e email dos clientes
+1. Remover informações do anunciante da página AdminImoveis
+2. Criar nova página `/admin/clientes` com lista de todos os usuários cadastrados
 
 ---
 
-### 1. Filtro de Tipo de Imóvel
+### 1. Remover Informações do Anunciante
 
-**Arquivos a modificar:**
-- `src/components/PropertySearch.tsx`
-- `src/pages/Imoveis.tsx`
+**Arquivo:** `src/pages/admin/AdminImoveis.tsx`
 
-**Mudança no layout:**
-
-```text
-ATUAL:
-[Categoria ▼]     [Operação ▼]
-- Residencial     - Venda
-- Comercial       - Aluguel
-
-NOVO:
-[Tipo ▼]          [Operação ▼]
-- Todos           - Venda
-- Casa            - Aluguel
-- Apartamento
-- Terreno
-- Loja
-```
-
-**Lógica de filtragem:**
-```typescript
-// Novo estado para tipo
-const [tipoFilter, setTipoFilter] = useState(searchParams.get("tipo") || "all");
-
-// Filtragem por tipo específico
-const matchesTipo = tipoFilter === "all" || imovel.tipo === tipoFilter;
-```
-
-**Nota:** "Loja" será mapeado para "comercial" no banco (valor existente).
-
----
-
-### 2. Toggle de Visibilidade da Senha
-
-**Arquivos a modificar:**
-- `src/pages/auth/Cadastro.tsx`
-- `src/pages/auth/Login.tsx`
-- `src/pages/auth/RedefinirSenha.tsx`
-
-**Implementação:**
-
-Adicionar estados para controlar visibilidade:
-```typescript
-const [showPassword, setShowPassword] = useState(false);
-const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-```
-
-Substituir o Input de senha por um Input com botão:
+Remover o bloco que exibe nome, telefone e email do anunciante:
 ```tsx
-<div className="relative">
-  <Input
-    id="password"
-    type={showPassword ? "text" : "password"}
-    placeholder="••••••••"
-    className="pr-10"
-    {...register("password")}
-  />
-  <button
-    type="button"
-    onClick={() => setShowPassword(!showPassword)}
-    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-  >
-    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-  </button>
-</div>
-```
-
----
-
-### 3. Entrada de Preço Formatada
-
-**Arquivo a modificar:**
-- `src/components/imoveis/ImovelForm.tsx`
-
-**Problema atual:**
-O campo de preço usa `type="number"`, que não aceita pontos como separador de milhar (200.000).
-
-**Solução:**
-Criar um componente de input de moeda que:
-- Exibe o valor formatado (R$ 200.000,00)
-- Remove formatação antes de enviar ao formulário
-- Aceita digitação natural com pontos ou vírgulas
-
-**Implementação:**
-```typescript
-// Estado para valor formatado
-const [precoFormatado, setPrecoFormatado] = useState("");
-
-// Função para formatar
-const formatarPreco = (valor: string) => {
-  // Remove tudo exceto números
-  const numeros = valor.replace(/\D/g, "");
-  // Converte para número
-  const numero = parseInt(numeros) || 0;
-  // Formata como moeda brasileira
-  return numero.toLocaleString("pt-BR");
-};
-
-// Ao mudar o input
-const handlePrecoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const valorDigitado = e.target.value;
-  const formatado = formatarPreco(valorDigitado);
-  setPrecoFormatado(formatado);
-  
-  // Atualiza o valor real no formulário (apenas números)
-  const valorNumerico = parseInt(valorDigitado.replace(/\D/g, "")) || 0;
-  setValue("preco", valorNumerico);
-};
-```
-
-**Campo no formulário:**
-```tsx
-<Input
-  id="preco"
-  type="text"
-  inputMode="numeric"
-  placeholder="200.000"
-  value={precoFormatado}
-  onChange={handlePrecoChange}
-/>
-```
-
-Mesma lógica aplicada para campos: condomínio e IPTU.
-
----
-
-### 4. Lista de Clientes no Admin
-
-**Opção A: Adicionar à página existente de imóveis**
-
-A página `AdminImoveis.tsx` já mostra nome e telefone do anunciante. Vou adicionar o email também:
-
-```tsx
-// Mudança na exibição
+// REMOVER este bloco:
 {imovel.profiles && (
-  <div className="mt-2 text-sm text-muted-foreground">
+  <div className="mt-2 text-sm text-muted-foreground space-y-0.5">
     <p><strong>Anunciante:</strong> {imovel.profiles.nome}</p>
     <p><strong>Telefone:</strong> {imovel.profiles.telefone}</p>
     <p><strong>Email:</strong> {imovel.profiles.email}</p>
@@ -158,45 +25,134 @@ A página `AdminImoveis.tsx` já mostra nome e telefone do anunciante. Vou adici
 )}
 ```
 
-**Opção B: Nova página dedicada de clientes**
+---
 
-Criar nova página `/admin/clientes` que lista todos os clientes cadastrados:
+### 2. Criar Nova Página de Clientes
 
-| Nome | Email | Telefone | Imóveis | Ações |
-|------|-------|----------|---------|-------|
-| João Silva | joao@email.com | (61) 99999-9999 | 2 | Ver |
+**Novo arquivo:** `src/pages/admin/AdminClientes.tsx`
 
-**Recomendação:** Começar com a Opção A (mais simples), pois já existe a estrutura para mostrar dados do cliente junto com o imóvel.
+Lista todos os usuários cadastrados no site com:
+- Nome
+- Email
+- Telefone
+- Data de cadastro
+- Quantidade de imóveis
+
+**Layout da página:**
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ ← Voltar                                                    │
+│                                                             │
+│ Clientes Cadastrados                                        │
+│ X clientes encontrados                                      │
+├─────────────────────────────────────────────────────────────┤
+│ Nome            │ Email            │ Telefone   │ Imóveis  │
+├─────────────────┼──────────────────┼────────────┼──────────┤
+│ João Silva      │ joao@email.com   │ 61 99999.. │ 2        │
+│ Maria Santos    │ maria@email.com  │ 61 88888.. │ 1        │
+│ Pedro Costa     │ pedro@email.com  │ 61 77777.. │ 0        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Estrutura do componente:**
+
+```typescript
+interface Cliente {
+  id: string;
+  nome: string;
+  email: string;
+  telefone: string;
+  created_at: string;
+  imoveis_count: number;
+}
+
+// Buscar todos os profiles
+const { data: profiles } = await supabase
+  .from("profiles")
+  .select("*")
+  .order("created_at", { ascending: false });
+
+// Contar imóveis por usuário
+const { data: imoveisCount } = await supabase
+  .from("imoveis")
+  .select("user_id");
+
+// Combinar dados
+const clientes = profiles.map(profile => ({
+  ...profile,
+  imoveis_count: imoveisCount.filter(i => i.user_id === profile.id).length
+}));
+```
 
 ---
 
-### Resumo de Arquivos a Modificar
+### 3. Adicionar Rota no App.tsx
 
-| Arquivo | Mudança |
-|---------|---------|
-| `src/components/PropertySearch.tsx` | Substituir categoria por tipo específico |
-| `src/pages/Imoveis.tsx` | Substituir filtro categoria por tipo |
-| `src/pages/auth/Cadastro.tsx` | Adicionar toggle de senha |
-| `src/pages/auth/Login.tsx` | Adicionar toggle de senha |
-| `src/pages/auth/RedefinirSenha.tsx` | Adicionar toggle de senha |
-| `src/components/imoveis/ImovelForm.tsx` | Formatação de preço com pontos |
-| `src/pages/admin/AdminImoveis.tsx` | Mostrar email do cliente |
+```typescript
+import AdminClientes from "./pages/admin/AdminClientes";
+
+// Nova rota
+<Route
+  path="/admin/clientes"
+  element={
+    <ProtectedRoute requireAdmin>
+      <AdminClientes />
+    </ProtectedRoute>
+  }
+/>
+```
+
+---
+
+### 4. Adicionar Link no Dashboard
+
+**Arquivo:** `src/pages/admin/AdminDashboard.tsx`
+
+Adicionar card para acessar a página de clientes:
+
+```tsx
+<Card>
+  <CardHeader>
+    <CardTitle className="flex items-center gap-2">
+      <Users className="h-5 w-5" />
+      Clientes Cadastrados
+    </CardTitle>
+    <CardDescription>
+      Ver todos os usuários cadastrados no site
+    </CardDescription>
+  </CardHeader>
+  <CardContent>
+    <Button asChild className="w-full">
+      <Link to="/admin/clientes">Ver Clientes</Link>
+    </Button>
+  </CardContent>
+</Card>
+```
+
+---
+
+### Resumo de Arquivos
+
+| Arquivo | Ação |
+|---------|------|
+| `src/pages/admin/AdminImoveis.tsx` | Remover bloco de informações do anunciante |
+| `src/pages/admin/AdminClientes.tsx` | **Criar** nova página com lista de clientes |
+| `src/App.tsx` | Adicionar rota `/admin/clientes` |
+| `src/pages/admin/AdminDashboard.tsx` | Adicionar card de acesso à página de clientes |
 
 ---
 
 ### Detalhes Técnicos
 
-**Mapeamento de tipos:**
-- Casa → `casa`
-- Apartamento → `apartamento`
-- Terreno → `terreno`
-- Loja → `comercial` (usa o tipo existente no banco)
+**Componentes utilizados:**
+- Table, TableHeader, TableBody, TableRow, TableHead, TableCell (do shadcn/ui)
+- Card, Button, Badge
+- Loader2 para loading state
 
-**Ícones a importar:**
-```typescript
-import { Eye, EyeOff } from "lucide-react";
-```
+**Ícone:** `Users` do lucide-react
 
-**Validação de preço:**
-O schema Zod continuará validando como número, mas receberá o valor limpo (sem formatação).
+**Formatação de telefone:** Exibir como está salvo no banco
+
+**Ordenação padrão:** Por data de cadastro (mais recentes primeiro)
 
