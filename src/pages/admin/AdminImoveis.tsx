@@ -264,13 +264,6 @@ export default function AdminImoveis() {
                           <p className="text-lg font-bold text-primary">
                             {formatPrice(imovel.preco)}
                           </p>
-                          {imovel.profiles && (
-                            <div className="mt-2 text-sm text-muted-foreground space-y-0.5">
-                              <p><strong>Anunciante:</strong> {imovel.profiles.nome}</p>
-                              <p><strong>Telefone:</strong> {imovel.profiles.telefone}</p>
-                              <p><strong>Email:</strong> {imovel.profiles.email}</p>
-                            </div>
-                          )}
                         </div>
 
                         <div className="flex flex-wrap gap-2">
