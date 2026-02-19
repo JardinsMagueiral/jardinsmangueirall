@@ -18,6 +18,9 @@ import Grupos from "./pages/Grupos";
 import Eventos from "./pages/Eventos";
 import Calculadoras from "./pages/Calculadoras";
 import Contato from "./pages/Contato";
+import Classificados from "./pages/Classificados";
+import ClassificadoDetalhe from "./pages/ClassificadoDetalhe";
+import ClassificadoNovo from "./pages/ClassificadoNovo";
 import NotFound from "./pages/NotFound";
 
 // Auth pages
@@ -39,6 +42,7 @@ import AdminEditarImovel from "./pages/admin/AdminEditarImovel";
 import AdminEventos from "./pages/admin/AdminEventos";
 import AdminParceiros from "./pages/admin/AdminParceiros";
 import AdminClientes from "./pages/admin/AdminClientes";
+import AdminClassificados from "./pages/admin/AdminClassificados";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +66,8 @@ const App = () => (
               <Route path="/eventos" element={<Eventos />} />
               <Route path="/calculadoras" element={<Calculadoras />} />
               <Route path="/contato" element={<Contato />} />
+              <Route path="/classificados" element={<Classificados />} />
+              <Route path="/classificados/:id" element={<ClassificadoDetalhe />} />
 
               {/* Auth routes */}
               <Route path="/login" element={<Login />} />
@@ -149,6 +155,23 @@ const App = () => (
                 element={
                   <ProtectedRoute requireAdmin>
                     <AdminClientes />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/classificados/novo"
+                element={
+                  <ProtectedRoute>
+                    <ClassificadoNovo />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/classificados"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminClassificados />
                   </ProtectedRoute>
                 }
               />
