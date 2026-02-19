@@ -47,6 +47,77 @@ export type Database = {
         }
         Relationships: []
       }
+      classificado_fotos: {
+        Row: {
+          classificado_id: string
+          created_at: string | null
+          id: string
+          ordem: number | null
+          url: string
+        }
+        Insert: {
+          classificado_id: string
+          created_at?: string | null
+          id?: string
+          ordem?: number | null
+          url: string
+        }
+        Update: {
+          classificado_id?: string
+          created_at?: string | null
+          id?: string
+          ordem?: number | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classificado_fotos_classificado_id_fkey"
+            columns: ["classificado_id"]
+            isOneToOne: false
+            referencedRelation: "classificados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classificados: {
+        Row: {
+          categoria: string
+          contato_whatsapp: string
+          created_at: string | null
+          descricao: string | null
+          id: string
+          preco: number
+          status: string | null
+          titulo: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          categoria: string
+          contato_whatsapp: string
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          preco: number
+          status?: string | null
+          titulo: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          categoria?: string
+          contato_whatsapp?: string
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          preco?: number
+          status?: string | null
+          titulo?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       eventos: {
         Row: {
           created_at: string | null

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Menu, Home, Users, Building, Handshake, MessageCircle, Phone, Calendar, User, LogIn, Calculator } from "lucide-react";
+import { Menu, Home, Users, Building, Handshake, MessageCircle, Phone, Calendar, User, LogIn, Calculator, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,6 +36,10 @@ const menuItems = [{
   label: "Calculadoras",
   href: "/calculadoras",
   icon: Calculator
+}, {
+  label: "Trocas e Vendas",
+  href: "/classificados",
+  icon: Tag
 }, {
   label: "Contato",
   href: "/contato",
