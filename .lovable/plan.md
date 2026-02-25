@@ -1,78 +1,121 @@
 
 
-# Plano de Melhorias - 5 Ajustes
+# Submenu "Inicio" com Quadras 1-15
 
-## 1. CTA "Anuncie nos Classificados" - Redirecionar para criacao de anuncio
+## Visao Geral
 
-**Arquivo:** `src/components/CTASection.tsx`
-
-- Alterar o item "Anuncie nos Classificados" para apontar para `/classificados/novo` (rota interna) em vez do link do WhatsApp.
-- Mudar `isExternal: true` para `isExternal: false`.
+Transformar o item "Inicio" do menu em um submenu com dropdown contendo "Voltar a pagina inicial" + links para 15 quadras. Cada quadra tera sua propria pagina com informacoes do condominio (nome, telefone, email, taxa) e um carrossel de ate 10 fotos gerenciaveis pelo admin.
 
 ---
 
-## 2. Painel Admin para gerenciar Grupos WhatsApp
+## 1. Banco de Dados
 
-Criar uma tabela no banco de dados para armazenar os grupos, e um painel admin para adicionar/remover grupos. Os componentes `WhatsAppGroups`, `Footer` e a pagina `Grupos` passam a buscar os grupos do banco.
+### Tabela `quadras`
+Armazena as informacoes fixas de cada quadra.
 
-### Banco de dados
-- Criar tabela `whatsapp_grupos` com colunas: `id`, `titulo`, `descricao`, `link`, `ordem`, `ativo`, `created_at`.
-- RLS: leitura publica para grupos ativos, CRUD completo para admins.
+```text
+quadras
+- id: uuid (PK)
+- numero: integer (1-15)
+- nome: text (ex: "Jardins dos Jacarandas")
+- telefone: text
+- email: text
+- taxa_condominio: numeric
+- created_at: timestamptz
+```
 
-### Nova pagina admin
-- **Arquivo:** `src/pages/admin/AdminGrupos.tsx`
-- Listar todos os grupos com opcoes de adicionar, editar e excluir.
-- Formulario simples com titulo, descricao e link.
+### Tabela `quadra_fotos`
+Fotos de cada quadra, max 10, gerenciaveis pelo admin.
 
-### Rota e navegacao
-- Registrar `/admin/grupos` em `App.tsx`.
-- Adicionar card "Gerenciar Grupos WhatsApp" no `AdminDashboard.tsx`.
+```text
+quadra_fotos
+- id: uuid (PK)
+- quadra_id: uuid (FK -> quadras)
+- url: text
+- ordem: integer
+- created_at: timestamptz
+```
 
-### Componentes atualizados
-- **`WhatsAppGroups.tsx`**: Buscar grupos da tabela `whatsapp_grupos` em vez de array hardcoded.
-- **`Footer.tsx`**: Buscar grupos da tabela `whatsapp_grupos` em vez de links hardcoded.
-- **`Grupos.tsx`**: Ja usa `WhatsAppGroups`, entao sera atualizado automaticamente.
+### RLS
+- `quadras`: leitura publica para todos, CRUD para admins
+- `quadra_fotos`: leitura publica para todos, CRUD para admins
 
-### Seed dos grupos atuais
-- Inserir os 5 grupos existentes (Geral, Geral 2, Carona, Imoveis, Desapego) na tabela via migration.
+### Storage Bucket
+- Criar bucket `quadras` (publico) para armazenar as fotos
 
----
-
-## 3. Rodape - Adicionar grupo "Geral 2"
-
-Sera resolvido automaticamente pelo item 2, pois o Footer passara a buscar todos os grupos do banco (incluindo Geral 2).
-
----
-
-## 4. Renomear "Parceiros" para "Parceiros e Indicacoes"
-
-**Arquivos afetados:**
-- `src/components/Header.tsx`: Alterar label do menu de "Parceiros" para "Parceiros e Indicacoes".
-- `src/components/Footer.tsx`: Atualizar texto no rodape se houver referencia.
-- `src/pages/Parceiros.tsx`: Atualizar titulo e textos da pagina.
+### Seed
+- Inserir as 15 quadras com os dados fornecidos (nome, telefone, email, taxa)
 
 ---
 
-## 5. Menu mobile com scroll
+## 2. Header - Submenu no "Inicio"
 
 **Arquivo:** `src/components/Header.tsx`
 
-- Adicionar `ScrollArea` do Radix UI ao conteudo do `SheetContent` do menu mobile, permitindo rolar quando ha muitos itens de menu.
-- Aplicar altura maxima com overflow para garantir que todas as opcoes fiquem acessiveis.
+### Desktop
+- Substituir o link simples "Inicio" por um dropdown usando `DropdownMenu` (Radix UI, ja instalado)
+- Ao passar o mouse / clicar, mostra submenu com:
+  - "Voltar a pagina inicial" -> `/`
+  - Separador
+  - "Quadra 01" -> `/quadra/1`
+  - "Quadra 02" -> `/quadra/2`
+  - ... ate Quadra 15
+
+### Mobile
+- No menu lateral (Sheet), o item "Inicio" vira um `Collapsible` que expande para mostrar as mesmas opcoes
+- Usar o componente `Collapsible` ja disponivel no projeto
 
 ---
 
-## Resumo dos arquivos modificados
+## 3. Pagina da Quadra
 
-| Arquivo | Alteracao |
+**Novo arquivo:** `src/pages/QuadraDetalhe.tsx`
+
+- Rota: `/quadra/:numero`
+- Busca dados da quadra pelo numero no banco
+- Exibe:
+  - Nome do condominio (ex: "Quadra 01 - Jardins dos Jacarandas")
+  - Telefone(s)
+  - Email
+  - Taxa de condominio formatada em R$
+  - Carrossel de fotos (usando o componente Carousel ja existente)
+- Layout com Header e Footer padrao
+
+---
+
+## 4. Painel Admin - Gerenciar Fotos das Quadras
+
+**Novo arquivo:** `src/pages/admin/AdminQuadras.tsx`
+
+- Lista as 15 quadras
+- Para cada quadra, botao para gerenciar fotos
+- Dialog/modal para upload e remocao de fotos (max 10 por quadra)
+- Upload para o bucket `quadras` no storage
+- Reordenacao das fotos (drag-and-drop, seguindo padrao do ImovelForm)
+
+**Arquivo:** `src/pages/admin/AdminDashboard.tsx`
+- Adicionar card "Gerenciar Quadras" com link para `/admin/quadras`
+
+---
+
+## 5. Rotas
+
+**Arquivo:** `src/App.tsx`
+
+Novas rotas:
+- `/quadra/:numero` -> `QuadraDetalhe` (publica)
+- `/admin/quadras` -> `AdminQuadras` (protegida, admin)
+
+---
+
+## Resumo dos arquivos
+
+| Arquivo | Acao |
 |---|---|
-| `src/components/CTASection.tsx` | Link classificados interno |
-| `src/components/WhatsAppGroups.tsx` | Buscar grupos do banco |
-| `src/components/Footer.tsx` | Buscar grupos do banco + rename parceiros |
-| `src/components/Header.tsx` | Rename parceiros + scroll mobile |
-| `src/pages/admin/AdminGrupos.tsx` | Nova pagina (CRUD grupos) |
-| `src/pages/admin/AdminDashboard.tsx` | Card para gerenciar grupos |
-| `src/pages/Parceiros.tsx` | Atualizar titulo |
-| `src/App.tsx` | Rota `/admin/grupos` |
-| Migration SQL | Tabela `whatsapp_grupos` + seed |
+| Migration SQL | Criar tabelas `quadras`, `quadra_fotos`, bucket, seed 15 quadras |
+| `src/components/Header.tsx` | Submenu dropdown no "Inicio" (desktop + mobile) |
+| `src/pages/QuadraDetalhe.tsx` | Nova pagina publica da quadra |
+| `src/pages/admin/AdminQuadras.tsx` | Nova pagina admin para fotos |
+| `src/pages/admin/AdminDashboard.tsx` | Card "Gerenciar Quadras" |
+| `src/App.tsx` | 2 novas rotas |
 
