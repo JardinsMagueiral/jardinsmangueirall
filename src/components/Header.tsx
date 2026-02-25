@@ -1,15 +1,20 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Menu, Home, Users, Building, Handshake, MessageCircle, Phone, Calendar, User, LogIn, Calculator, Tag } from "lucide-react";
+import { Menu, Home, Users, Building, Handshake, MessageCircle, Phone, Calendar, User, LogIn, Calculator, Tag, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAuth } from "@/contexts/AuthContext";
+
+const quadras = Array.from({ length: 15 }, (_, i) => ({
+  numero: i + 1,
+  label: `Quadra ${String(i + 1).padStart(2, "0")}`,
+  href: `/quadra/${i + 1}`,
+}));
+
 const menuItems = [{
-  label: "Início",
-  href: "/",
-  icon: Home
-}, {
   label: "Quem Somos",
   href: "/quem-somos",
   icon: Users
@@ -46,8 +51,10 @@ const menuItems = [{
   href: "/contato",
   icon: Phone
 }];
+
 export function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const [quadrasOpen, setQuadrasOpen] = useState(false);
   const { user, profile, loading } = useAuth();
   
   return <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -61,6 +68,30 @@ export function Header() {
 
         {/* Desktop Navigation */}
         <nav className="hidden items-center gap-1 lg:flex">
+          {/* Início Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary outline-none">
+              Início
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="z-50 bg-popover max-h-80 overflow-y-auto">
+              <DropdownMenuItem asChild>
+                <Link to="/" className="cursor-pointer">
+                  <Home className="mr-2 h-4 w-4" />
+                  Página Inicial
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {quadras.map((q) => (
+                <DropdownMenuItem key={q.numero} asChild>
+                  <Link to={q.href} className="cursor-pointer">
+                    {q.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {menuItems.map(item => <Link key={item.href} to={item.href} className="rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary">
               {item.label}
             </Link>)}
@@ -107,6 +138,27 @@ export function Header() {
                       Jardins Mangueiral
                     </span>
                   </Link>
+                  {/* Início Collapsible */}
+                  <Collapsible open={quadrasOpen} onOpenChange={setQuadrasOpen}>
+                    <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-foreground/80 transition-colors hover:bg-secondary hover:text-primary">
+                      <span className="flex items-center gap-3">
+                        <Home className="h-5 w-5" />
+                        Início
+                      </span>
+                      <ChevronRight className={`h-4 w-4 transition-transform ${quadrasOpen ? "rotate-90" : ""}`} />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pl-8 space-y-1">
+                      <Link to="/" onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground/80 hover:bg-secondary hover:text-primary">
+                        Página Inicial
+                      </Link>
+                      {quadras.map((q) => (
+                        <Link key={q.numero} to={q.href} onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground/80 hover:bg-secondary hover:text-primary">
+                          {q.label}
+                        </Link>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+
                   {menuItems.map(item => <Link key={item.href} to={item.href} onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-foreground/80 transition-colors hover:bg-secondary hover:text-primary">
                       <item.icon className="h-5 w-5" />
                       {item.label}
