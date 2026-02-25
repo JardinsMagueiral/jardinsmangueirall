@@ -71,24 +71,38 @@ export function Header() {
           {/* Início Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary outline-none">
+              <Home className="h-4 w-4" />
               Início
-              <ChevronDown className="h-3 w-3" />
+              <ChevronDown className="h-3 w-3 transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="z-50 bg-popover max-h-80 overflow-y-auto">
-              <DropdownMenuItem asChild>
-                <Link to="/" className="cursor-pointer">
-                  <Home className="mr-2 h-4 w-4" />
-                  Página Inicial
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {quadras.map((q) => (
-                <DropdownMenuItem key={q.numero} asChild>
-                  <Link to={q.href} className="cursor-pointer">
-                    {q.label}
+            <DropdownMenuContent className="z-50 w-56 max-h-[70vh] overflow-y-auto rounded-xl border-primary/20 bg-card shadow-xl p-0">
+              <div className="bg-primary px-4 py-3 rounded-t-xl">
+                <span className="text-sm font-semibold text-primary-foreground">Navegação Rápida</span>
+              </div>
+              <div className="p-1">
+                <DropdownMenuItem asChild className="rounded-lg px-3 py-2.5 font-medium focus:bg-primary/10 focus:text-primary">
+                  <Link to="/" className="cursor-pointer flex items-center gap-2">
+                    <Home className="h-4 w-4 text-primary" />
+                    Página Inicial
                   </Link>
                 </DropdownMenuItem>
-              ))}
+              </div>
+              <DropdownMenuSeparator className="bg-border/60" />
+              <div className="px-3 py-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quadras Residenciais</span>
+              </div>
+              <div className="p-1 space-y-0.5">
+                {quadras.map((q) => (
+                  <DropdownMenuItem key={q.numero} asChild className="rounded-lg px-3 py-2 focus:bg-primary/10 focus:text-primary">
+                    <Link to={q.href} className="cursor-pointer flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-xs font-bold text-primary">
+                        {String(q.numero).padStart(2, "0")}
+                      </span>
+                      {q.label}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
 
