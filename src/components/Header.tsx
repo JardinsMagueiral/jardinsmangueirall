@@ -94,7 +94,8 @@ export function Header() {
                 </DropdownMenuItem>
                 {quadras.map((q) => (
                   <DropdownMenuItem key={q.numero} asChild className="shrink-0 rounded-lg px-2.5 py-2 focus:bg-primary/20 focus:text-primary">
-                    <Link to={q.href} className="cursor-pointer flex items-center gap-1.5">
+                    <Link to={q.href} className="cursor-pointer flex items-center gap-1.5 whitespace-nowrap">
+                      <span className="text-sm font-medium">Quadra</span>
                       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary/20 text-xs font-bold text-primary">
                         {String(q.numero).padStart(2, "0")}
                       </span>
