@@ -1,158 +1,78 @@
 
 
-## Plano: Página de Clientes no Admin
+# Plano de Melhorias - 5 Ajustes
 
-### Objetivo
+## 1. CTA "Anuncie nos Classificados" - Redirecionar para criacao de anuncio
 
-1. Remover informações do anunciante da página AdminImoveis
-2. Criar nova página `/admin/clientes` com lista de todos os usuários cadastrados
+**Arquivo:** `src/components/CTASection.tsx`
 
----
-
-### 1. Remover Informações do Anunciante
-
-**Arquivo:** `src/pages/admin/AdminImoveis.tsx`
-
-Remover o bloco que exibe nome, telefone e email do anunciante:
-```tsx
-// REMOVER este bloco:
-{imovel.profiles && (
-  <div className="mt-2 text-sm text-muted-foreground space-y-0.5">
-    <p><strong>Anunciante:</strong> {imovel.profiles.nome}</p>
-    <p><strong>Telefone:</strong> {imovel.profiles.telefone}</p>
-    <p><strong>Email:</strong> {imovel.profiles.email}</p>
-  </div>
-)}
-```
+- Alterar o item "Anuncie nos Classificados" para apontar para `/classificados/novo` (rota interna) em vez do link do WhatsApp.
+- Mudar `isExternal: true` para `isExternal: false`.
 
 ---
 
-### 2. Criar Nova Página de Clientes
+## 2. Painel Admin para gerenciar Grupos WhatsApp
 
-**Novo arquivo:** `src/pages/admin/AdminClientes.tsx`
+Criar uma tabela no banco de dados para armazenar os grupos, e um painel admin para adicionar/remover grupos. Os componentes `WhatsAppGroups`, `Footer` e a pagina `Grupos` passam a buscar os grupos do banco.
 
-Lista todos os usuários cadastrados no site com:
-- Nome
-- Email
-- Telefone
-- Data de cadastro
-- Quantidade de imóveis
+### Banco de dados
+- Criar tabela `whatsapp_grupos` com colunas: `id`, `titulo`, `descricao`, `link`, `ordem`, `ativo`, `created_at`.
+- RLS: leitura publica para grupos ativos, CRUD completo para admins.
 
-**Layout da página:**
+### Nova pagina admin
+- **Arquivo:** `src/pages/admin/AdminGrupos.tsx`
+- Listar todos os grupos com opcoes de adicionar, editar e excluir.
+- Formulario simples com titulo, descricao e link.
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ ← Voltar                                                    │
-│                                                             │
-│ Clientes Cadastrados                                        │
-│ X clientes encontrados                                      │
-├─────────────────────────────────────────────────────────────┤
-│ Nome            │ Email            │ Telefone   │ Imóveis  │
-├─────────────────┼──────────────────┼────────────┼──────────┤
-│ João Silva      │ joao@email.com   │ 61 99999.. │ 2        │
-│ Maria Santos    │ maria@email.com  │ 61 88888.. │ 1        │
-│ Pedro Costa     │ pedro@email.com  │ 61 77777.. │ 0        │
-└─────────────────────────────────────────────────────────────┘
-```
+### Rota e navegacao
+- Registrar `/admin/grupos` em `App.tsx`.
+- Adicionar card "Gerenciar Grupos WhatsApp" no `AdminDashboard.tsx`.
 
-**Estrutura do componente:**
+### Componentes atualizados
+- **`WhatsAppGroups.tsx`**: Buscar grupos da tabela `whatsapp_grupos` em vez de array hardcoded.
+- **`Footer.tsx`**: Buscar grupos da tabela `whatsapp_grupos` em vez de links hardcoded.
+- **`Grupos.tsx`**: Ja usa `WhatsAppGroups`, entao sera atualizado automaticamente.
 
-```typescript
-interface Cliente {
-  id: string;
-  nome: string;
-  email: string;
-  telefone: string;
-  created_at: string;
-  imoveis_count: number;
-}
-
-// Buscar todos os profiles
-const { data: profiles } = await supabase
-  .from("profiles")
-  .select("*")
-  .order("created_at", { ascending: false });
-
-// Contar imóveis por usuário
-const { data: imoveisCount } = await supabase
-  .from("imoveis")
-  .select("user_id");
-
-// Combinar dados
-const clientes = profiles.map(profile => ({
-  ...profile,
-  imoveis_count: imoveisCount.filter(i => i.user_id === profile.id).length
-}));
-```
+### Seed dos grupos atuais
+- Inserir os 5 grupos existentes (Geral, Geral 2, Carona, Imoveis, Desapego) na tabela via migration.
 
 ---
 
-### 3. Adicionar Rota no App.tsx
+## 3. Rodape - Adicionar grupo "Geral 2"
 
-```typescript
-import AdminClientes from "./pages/admin/AdminClientes";
-
-// Nova rota
-<Route
-  path="/admin/clientes"
-  element={
-    <ProtectedRoute requireAdmin>
-      <AdminClientes />
-    </ProtectedRoute>
-  }
-/>
-```
+Sera resolvido automaticamente pelo item 2, pois o Footer passara a buscar todos os grupos do banco (incluindo Geral 2).
 
 ---
 
-### 4. Adicionar Link no Dashboard
+## 4. Renomear "Parceiros" para "Parceiros e Indicacoes"
 
-**Arquivo:** `src/pages/admin/AdminDashboard.tsx`
-
-Adicionar card para acessar a página de clientes:
-
-```tsx
-<Card>
-  <CardHeader>
-    <CardTitle className="flex items-center gap-2">
-      <Users className="h-5 w-5" />
-      Clientes Cadastrados
-    </CardTitle>
-    <CardDescription>
-      Ver todos os usuários cadastrados no site
-    </CardDescription>
-  </CardHeader>
-  <CardContent>
-    <Button asChild className="w-full">
-      <Link to="/admin/clientes">Ver Clientes</Link>
-    </Button>
-  </CardContent>
-</Card>
-```
+**Arquivos afetados:**
+- `src/components/Header.tsx`: Alterar label do menu de "Parceiros" para "Parceiros e Indicacoes".
+- `src/components/Footer.tsx`: Atualizar texto no rodape se houver referencia.
+- `src/pages/Parceiros.tsx`: Atualizar titulo e textos da pagina.
 
 ---
 
-### Resumo de Arquivos
+## 5. Menu mobile com scroll
 
-| Arquivo | Ação |
-|---------|------|
-| `src/pages/admin/AdminImoveis.tsx` | Remover bloco de informações do anunciante |
-| `src/pages/admin/AdminClientes.tsx` | **Criar** nova página com lista de clientes |
-| `src/App.tsx` | Adicionar rota `/admin/clientes` |
-| `src/pages/admin/AdminDashboard.tsx` | Adicionar card de acesso à página de clientes |
+**Arquivo:** `src/components/Header.tsx`
+
+- Adicionar `ScrollArea` do Radix UI ao conteudo do `SheetContent` do menu mobile, permitindo rolar quando ha muitos itens de menu.
+- Aplicar altura maxima com overflow para garantir que todas as opcoes fiquem acessiveis.
 
 ---
 
-### Detalhes Técnicos
+## Resumo dos arquivos modificados
 
-**Componentes utilizados:**
-- Table, TableHeader, TableBody, TableRow, TableHead, TableCell (do shadcn/ui)
-- Card, Button, Badge
-- Loader2 para loading state
-
-**Ícone:** `Users` do lucide-react
-
-**Formatação de telefone:** Exibir como está salvo no banco
-
-**Ordenação padrão:** Por data de cadastro (mais recentes primeiro)
+| Arquivo | Alteracao |
+|---|---|
+| `src/components/CTASection.tsx` | Link classificados interno |
+| `src/components/WhatsAppGroups.tsx` | Buscar grupos do banco |
+| `src/components/Footer.tsx` | Buscar grupos do banco + rename parceiros |
+| `src/components/Header.tsx` | Rename parceiros + scroll mobile |
+| `src/pages/admin/AdminGrupos.tsx` | Nova pagina (CRUD grupos) |
+| `src/pages/admin/AdminDashboard.tsx` | Card para gerenciar grupos |
+| `src/pages/Parceiros.tsx` | Atualizar titulo |
+| `src/App.tsx` | Rota `/admin/grupos` |
+| Migration SQL | Tabela `whatsapp_grupos` + seed |
 
