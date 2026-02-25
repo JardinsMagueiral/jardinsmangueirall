@@ -71,22 +71,34 @@ export function Header() {
   const startX = useRef(0);
   const scrollLeftRef = useRef(0);
 
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
+  const hasDragged = useRef(false);
+
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    if (!scrollRef.current) return;
     isDragging.current = true;
-    startX.current = e.pageX - (scrollRef.current?.offsetLeft || 0);
-    scrollLeftRef.current = scrollRef.current?.scrollLeft || 0;
+    hasDragged.current = false;
+    startX.current = e.clientX;
+    scrollLeftRef.current = scrollRef.current.scrollLeft;
+    scrollRef.current.setPointerCapture(e.pointerId);
   }, []);
 
-  const onMouseMove = useCallback((e: React.MouseEvent) => {
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!isDragging.current || !scrollRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - scrollRef.current.offsetLeft;
-    const walk = (x - startX.current) * 1.5;
-    scrollRef.current.scrollLeft = scrollLeftRef.current - walk;
+    const dx = e.clientX - startX.current;
+    if (Math.abs(dx) > 3) hasDragged.current = true;
+    scrollRef.current.scrollLeft = scrollLeftRef.current - dx;
   }, []);
 
-  const onMouseUpOrLeave = useCallback(() => {
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
     isDragging.current = false;
+    scrollRef.current?.releasePointerCapture(e.pointerId);
+  }, []);
+
+  const onClickCapture = useCallback((e: React.MouseEvent) => {
+    if (hasDragged.current) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   }, []);
   
   return <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -108,7 +120,7 @@ export function Header() {
               <ChevronDown className="h-3 w-3 transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </DropdownMenuTrigger>
             <DropdownMenuContent className="z-50 rounded-xl border-primary/20 bg-card shadow-xl p-0" align="start">
-              <div ref={scrollRef} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUpOrLeave} onMouseLeave={onMouseUpOrLeave} className="flex flex-row items-center gap-1 bg-primary/10 rounded-xl m-1 p-2 overflow-x-auto cursor-grab active:cursor-grabbing select-none">
+              <div ref={scrollRef} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onClickCapture={onClickCapture} className="flex flex-row items-center gap-1 bg-primary/10 rounded-xl m-1 p-2 overflow-x-auto cursor-grab active:cursor-grabbing select-none max-w-[80vw]" style={{ scrollbarWidth: 'none' }}>
                 <DropdownMenuItem asChild className="shrink-0 rounded-lg px-3 py-2 font-medium focus:bg-primary/20 focus:text-primary">
                   <Link to="/" className="cursor-pointer flex items-center gap-1.5">
                     <Home className="h-4 w-4 text-primary" />
