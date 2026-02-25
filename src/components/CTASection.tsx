@@ -31,9 +31,9 @@ const ctas = [
     icon: ShoppingBag,
     title: "Anuncie nos Classificados",
     description: "Anuncie gratuitamente",
-    link: "https://chat.whatsapp.com/LtNPTADfoSK24EjGsFubsp",
+    link: "/classificados/novo",
     variant: "outline" as const,
-    isExternal: true,
+    isExternal: false,
   },
 ];
 

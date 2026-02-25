@@ -395,6 +395,36 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_grupos: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          descricao: string | null
+          id: string
+          link: string
+          ordem: number | null
+          titulo: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          link: string
+          ordem?: number | null
+          titulo: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          link?: string
+          ordem?: number | null
+          titulo?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

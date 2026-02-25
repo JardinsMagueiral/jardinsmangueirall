@@ -1,36 +1,45 @@
-import { MessageCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MessageCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
 
-const groups = [
-  {
-    title: "Geral 🔊",
-    description: "Grupo principal da comunidade",
-    link: "https://chat.whatsapp.com/GH1XuLDJfKP4be24ullSCD",
-  },
-  {
-    title: "Geral 2 🔊",
-    description: "Segundo grupo geral",
-    link: "https://chat.whatsapp.com/DrIx3XxBW8h2CuqQSj0q1F",
-  },
-  {
-    title: "Carona 🚕",
-    description: "Encontre ou ofereça caronas",
-    link: "https://chat.whatsapp.com/BoCnDmejx5wGLgTweIk782",
-  },
-  {
-    title: "Imóveis 🏡",
-    description: "Compra, venda e aluguel",
-    link: "https://chat.whatsapp.com/DGIxINfCoLw8rAt2BKMuoj",
-  },
-  {
-    title: "Desapego 🛍️",
-    description: "Classificados da comunidade",
-    link: "https://chat.whatsapp.com/LtNPTADfoSK24EjGsFubsp",
-  },
-];
+interface WhatsAppGrupo {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  link: string;
+  ordem: number;
+}
 
 export function WhatsAppGroups() {
+  const [groups, setGroups] = useState<WhatsAppGrupo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      const { data, error } = await supabase
+        .from("whatsapp_grupos")
+        .select("*")
+        .eq("ativo", true)
+        .order("ordem");
+
+      if (!error && data) setGroups(data as WhatsAppGrupo[]);
+      setLoading(false);
+    };
+    fetchGroups();
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="py-16">
+        <div className="container px-4 flex justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="py-16">
       <div className="container px-4">
@@ -45,10 +54,10 @@ export function WhatsAppGroups() {
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {groups.map((group) => (
-            <Card key={group.link} className="group transition-all hover:shadow-lg hover:-translate-y-1">
+            <Card key={group.id} className="group transition-all hover:shadow-lg hover:-translate-y-1">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">{group.title}</CardTitle>
-                <CardDescription>{group.description}</CardDescription>
+                <CardTitle className="text-lg">{group.titulo}</CardTitle>
+                <CardDescription>{group.descricao}</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button variant="whatsapp" className="w-full" asChild>
