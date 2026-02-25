@@ -76,38 +76,29 @@ export function Header() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden items-center gap-0.5 xl:flex">
+        <nav className="hidden items-center gap-1 xl:flex">
           {/* Início Dropdown */}
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary outline-none">
+            <DropdownMenuTrigger className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary outline-none">
               <Home className="h-3.5 w-3.5" />
               Início
               <ChevronDown className="h-3 w-3 transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="z-50 w-[420px] rounded-xl border-primary/20 bg-card shadow-xl p-0">
-              <div className="bg-primary px-4 py-3 rounded-t-xl">
-                <span className="text-sm font-semibold text-primary-foreground">Navegação Rápida</span>
-              </div>
-              <div className="p-1">
-                <DropdownMenuItem asChild className="rounded-lg px-3 py-2.5 font-medium focus:bg-primary/10 focus:text-primary">
+            <DropdownMenuContent className="z-50 w-64 rounded-xl border-primary/20 bg-card shadow-xl p-0 max-h-[70vh] overflow-y-auto">
+              <div className="flex flex-col bg-primary/10 rounded-xl m-1 p-1">
+                <DropdownMenuItem asChild className="rounded-lg px-3 py-2 font-medium focus:bg-primary/20 focus:text-primary">
                   <Link to="/" className="cursor-pointer flex items-center gap-2">
                     <Home className="h-4 w-4 text-primary" />
                     Página Inicial
                   </Link>
                 </DropdownMenuItem>
-              </div>
-              <DropdownMenuSeparator className="bg-border/60" />
-              <div className="px-3 pt-2 pb-1">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quadras Residenciais</span>
-              </div>
-              <div className="grid grid-cols-3 gap-1.5 p-3 mx-2 mb-2 bg-primary/5 rounded-lg">
                 {quadras.map((q) => (
-                  <DropdownMenuItem key={q.numero} asChild className="rounded-md px-0 py-0 focus:bg-primary/15 focus:text-primary">
-                    <Link to={q.href} className="cursor-pointer flex items-center gap-1.5 px-2 py-1.5">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary/15 text-[10px] font-bold text-primary">
+                  <DropdownMenuItem key={q.numero} asChild className="rounded-lg px-3 py-2 focus:bg-primary/20 focus:text-primary">
+                    <Link to={q.href} className="cursor-pointer flex items-center gap-2">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary/20 text-[10px] font-bold text-primary">
                         {String(q.numero).padStart(2, "0")}
                       </span>
-                      <span className="text-xs font-medium">Quadra {String(q.numero).padStart(2, "0")}</span>
+                      <span className="text-sm font-medium">{q.label}</span>
                     </Link>
                   </DropdownMenuItem>
                 ))}
@@ -115,7 +106,7 @@ export function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {menuItems.map(item => <Link key={item.href} to={item.href} className="rounded-lg px-2 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary">
+          {menuItems.map(item => <Link key={item.href} to={item.href} className="rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary">
               {item.shortLabel}
             </Link>)}
         </nav>
@@ -170,12 +161,12 @@ export function Header() {
                       </span>
                       <ChevronRight className={`h-4 w-4 transition-transform ${quadrasOpen ? "rotate-90" : ""}`} />
                     </CollapsibleTrigger>
-                    <CollapsibleContent className="pl-8 space-y-1">
-                      <Link to="/" onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground/80 hover:bg-secondary hover:text-primary">
+                    <CollapsibleContent className="pl-8 space-y-1 bg-primary/10 rounded-lg p-2 mt-1">
+                      <Link to="/" onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground/80 hover:bg-primary/20 hover:text-primary">
                         Página Inicial
                       </Link>
                       {quadras.map((q) => (
-                        <Link key={q.numero} to={q.href} onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground/80 hover:bg-secondary hover:text-primary">
+                        <Link key={q.numero} to={q.href} onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground/80 hover:bg-primary/20 hover:text-primary">
                           {q.label}
                         </Link>
                       ))}
