@@ -406,7 +406,7 @@ const Parceiros = () => {
   return (
     <>
       <Helmet>
-        <title>Rede de Confiança - Parceiros | Jardins Mangueiral</title>
+        <title>Parceiros e Indicações | Jardins Mangueiral</title>
         <meta name="description" content="Encontre prestadores de serviços e empresas parceiras de confiança na comunidade Jardins Mangueiral." />
       </Helmet>
       <div className="flex min-h-screen flex-col bg-background">
@@ -416,7 +416,7 @@ const Parceiros = () => {
           <section className="bg-primary py-16 text-primary-foreground">
             <div className="container px-4 text-center">
               <Handshake className="mx-auto mb-4 h-12 w-12" />
-              <h1 className="font-serif text-4xl font-bold md:text-5xl">Rede de Confiança</h1>
+              <h1 className="font-serif text-4xl font-bold md:text-5xl">Parceiros e Indicações</h1>
               <p className="mx-auto mt-4 max-w-2xl text-lg opacity-90">
                 Prestadores de serviços e empresas parceiras da comunidade
               </p>

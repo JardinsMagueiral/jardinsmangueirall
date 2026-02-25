@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Menu, Home, Users, Building, Handshake, MessageCircle, Phone, Calendar, User, LogIn, Calculator, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/AuthContext";
 const menuItems = [{
   label: "Início",
@@ -21,7 +22,7 @@ const menuItems = [{
   href: "/comunidade",
   icon: Users
 }, {
-  label: "Parceiros",
+  label: "Parceiros e Indicações",
   href: "/parceiros",
   icon: Handshake
 }, {
@@ -97,42 +98,44 @@ export function Header() {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-80">
-              <div className="flex flex-col gap-4 pt-8">
-                <Link to="/" className="flex items-center gap-2 pb-4" onClick={() => setIsOpen(false)}>
-                  <img alt="Jardins Mangueiral" className="h-10 w-10 object-contain" src="/lovable-uploads/adaf769f-f696-4e5f-a43f-518d301799d2.png" />
-                  <span className="font-serif text-lg font-semibold text-primary">
-                    Jardins Mangueiral
-                  </span>
-                </Link>
-                {menuItems.map(item => <Link key={item.href} to={item.href} onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-foreground/80 transition-colors hover:bg-secondary hover:text-primary">
-                    <item.icon className="h-5 w-5" />
-                    {item.label}
-                  </Link>)}
-                {!loading && (
-                  user ? (
-                    <Button variant="outline" className="mt-4" asChild>
-                      <Link to="/minha-conta" onClick={() => setIsOpen(false)}>
-                        <User className="mr-2 h-4 w-4" />
-                        {profile?.nome?.split(' ')[0] || "Minha Conta"}
-                      </Link>
-                    </Button>
-                  ) : (
-                    <Button variant="outline" className="mt-4" asChild>
-                      <Link to="/login" onClick={() => setIsOpen(false)}>
-                        <LogIn className="mr-2 h-4 w-4" />
-                        Entrar
-                      </Link>
-                    </Button>
-                  )
-                )}
-                <Button variant="whatsapp" className="mt-2" asChild>
-                  <a href="https://wa.me/5561991647984" target="_blank" rel="noopener noreferrer">
-                    <MessageCircle className="mr-2 h-4 w-4" />
-                    Fale Conosco
-                  </a>
-                </Button>
-              </div>
+            <SheetContent side="right" className="w-80 p-0">
+              <ScrollArea className="h-full px-6">
+                <div className="flex flex-col gap-4 pt-8 pb-8">
+                  <Link to="/" className="flex items-center gap-2 pb-4" onClick={() => setIsOpen(false)}>
+                    <img alt="Jardins Mangueiral" className="h-10 w-10 object-contain" src="/lovable-uploads/adaf769f-f696-4e5f-a43f-518d301799d2.png" />
+                    <span className="font-serif text-lg font-semibold text-primary">
+                      Jardins Mangueiral
+                    </span>
+                  </Link>
+                  {menuItems.map(item => <Link key={item.href} to={item.href} onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-foreground/80 transition-colors hover:bg-secondary hover:text-primary">
+                      <item.icon className="h-5 w-5" />
+                      {item.label}
+                    </Link>)}
+                  {!loading && (
+                    user ? (
+                      <Button variant="outline" className="mt-4" asChild>
+                        <Link to="/minha-conta" onClick={() => setIsOpen(false)}>
+                          <User className="mr-2 h-4 w-4" />
+                          {profile?.nome?.split(' ')[0] || "Minha Conta"}
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button variant="outline" className="mt-4" asChild>
+                        <Link to="/login" onClick={() => setIsOpen(false)}>
+                          <LogIn className="mr-2 h-4 w-4" />
+                          Entrar
+                        </Link>
+                      </Button>
+                    )
+                  )}
+                  <Button variant="whatsapp" className="mt-2" asChild>
+                    <a href="https://wa.me/5561991647984" target="_blank" rel="noopener noreferrer">
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      Fale Conosco
+                    </a>
+                  </Button>
+                </div>
+              </ScrollArea>
             </SheetContent>
           </Sheet>
         </div>

@@ -1,7 +1,30 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { MessageCircle, Phone, MapPin, Heart, Mail, Instagram } from "lucide-react";
+import { MessageCircle, Phone, MapPin, Heart, Mail, Instagram, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo.png";
+
+interface FooterGrupo {
+  id: string;
+  titulo: string;
+  link: string;
+}
+
 export function Footer() {
+  const [groups, setGroups] = useState<FooterGrupo[]>([]);
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      const { data } = await supabase
+        .from("whatsapp_grupos")
+        .select("id, titulo, link")
+        .eq("ativo", true)
+        .order("ordem");
+      if (data) setGroups(data as FooterGrupo[]);
+    };
+    fetchGroups();
+  }, []);
+
   return <footer className="border-t bg-primary text-primary-foreground">
       <div className="container px-4 py-12">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
@@ -36,7 +59,7 @@ export function Footer() {
               </li>
               <li>
                 <Link to="/parceiros" className="hover:opacity-100">
-                  Parceiros
+                  Parceiros e Indicações
                 </Link>
               </li>
             </ul>
@@ -45,26 +68,13 @@ export function Footer() {
           <div>
             <h3 className="mb-4 font-semibold">Grupos WhatsApp</h3>
             <ul className="space-y-2 text-sm opacity-80">
-              <li>
-                <a href="https://chat.whatsapp.com/GH1XuLDJfKP4be24ullSCD" target="_blank" className="hover:opacity-100">
-                  Geral 🔊
-                </a>
-              </li>
-              <li>
-                <a href="https://chat.whatsapp.com/BoCnDmejx5wGLgTweIk782" target="_blank" className="hover:opacity-100">
-                  Carona 🚕
-                </a>
-              </li>
-              <li>
-                <a href="https://chat.whatsapp.com/DGIxINfCoLw8rAt2BKMuoj" target="_blank" className="hover:opacity-100">
-                  Imóveis 🏡
-                </a>
-              </li>
-              <li>
-                <a href="https://chat.whatsapp.com/LtNPTADfoSK24EjGsFubsp" target="_blank" className="hover:opacity-100">
-                  Desapego 🛍️
-                </a>
-              </li>
+              {groups.map((g) => (
+                <li key={g.id}>
+                  <a href={g.link} target="_blank" className="hover:opacity-100">
+                    {g.titulo}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
 
