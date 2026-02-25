@@ -84,21 +84,20 @@ export function Header() {
               Início
               <ChevronDown className="h-3 w-3 transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="z-50 w-64 rounded-xl border-primary/20 bg-card shadow-xl p-0 max-h-[70vh] overflow-y-auto">
-              <div className="flex flex-col bg-primary/10 rounded-xl m-1 p-1">
-                <DropdownMenuItem asChild className="rounded-lg px-3 py-2 font-medium focus:bg-primary/20 focus:text-primary">
-                  <Link to="/" className="cursor-pointer flex items-center gap-2">
+            <DropdownMenuContent className="z-50 rounded-xl border-primary/20 bg-card shadow-xl p-0" align="start">
+              <div className="flex flex-row items-center gap-1 bg-primary/10 rounded-xl m-1 p-2 overflow-x-auto">
+                <DropdownMenuItem asChild className="shrink-0 rounded-lg px-3 py-2 font-medium focus:bg-primary/20 focus:text-primary">
+                  <Link to="/" className="cursor-pointer flex items-center gap-1.5">
                     <Home className="h-4 w-4 text-primary" />
-                    Página Inicial
+                    <span className="text-sm font-medium whitespace-nowrap">Início</span>
                   </Link>
                 </DropdownMenuItem>
                 {quadras.map((q) => (
-                  <DropdownMenuItem key={q.numero} asChild className="rounded-lg px-3 py-2 focus:bg-primary/20 focus:text-primary">
-                    <Link to={q.href} className="cursor-pointer flex items-center gap-2">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary/20 text-[10px] font-bold text-primary">
+                  <DropdownMenuItem key={q.numero} asChild className="shrink-0 rounded-lg px-2.5 py-2 focus:bg-primary/20 focus:text-primary">
+                    <Link to={q.href} className="cursor-pointer flex items-center gap-1.5">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary/20 text-xs font-bold text-primary">
                         {String(q.numero).padStart(2, "0")}
                       </span>
-                      <span className="text-sm font-medium">{q.label}</span>
                     </Link>
                   </DropdownMenuItem>
                 ))}
