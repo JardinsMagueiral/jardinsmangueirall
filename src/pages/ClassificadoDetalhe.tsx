@@ -65,7 +65,7 @@ export default function ClassificadoDetalhe() {
       `Olá! Vi seu anúncio "${item.titulo}" por ${formatPrice(item.preco)} no site jardinsmangueiral.com e tenho interesse!\n\nLink do anúncio: ${anuncioUrl}`
     );
     const phone = item.contato_whatsapp.replace(/\D/g, "");
-    window.open(`https://wa.me/55${phone}`, "_blank");
+    window.open(`https://wa.me/55${phone}?text=${msg}`, "_blank");
   };
 
   if (loading) {
