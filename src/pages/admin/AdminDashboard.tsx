@@ -8,7 +8,7 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Home, CheckCircle, XCircle, Clock, Building, CalendarDays, Handshake, Users, Tag, MessageCircle } from "lucide-react";
+import { Loader2, Plus, Home, CheckCircle, XCircle, Clock, Building, CalendarDays, Handshake, Users, Tag, MessageCircle, MapPin } from "lucide-react";
 
 interface Stats {
   total: number;
@@ -268,6 +268,23 @@ export default function AdminDashboard() {
                 <CardContent>
                   <Button asChild className="w-full">
                     <Link to="/admin/novo-imovel">Cadastrar Imóvel</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Gerenciar Quadras
+                  </CardTitle>
+                  <CardDescription>
+                    Adicionar e remover fotos das quadras do condomínio
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button asChild className="w-full">
+                    <Link to="/admin/quadras">Ver Quadras</Link>
                   </Button>
                 </CardContent>
               </Card>

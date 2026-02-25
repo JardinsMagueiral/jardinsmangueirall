@@ -374,6 +374,68 @@ export type Database = {
         }
         Relationships: []
       }
+      quadra_fotos: {
+        Row: {
+          created_at: string | null
+          id: string
+          ordem: number | null
+          quadra_id: string
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ordem?: number | null
+          quadra_id: string
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ordem?: number | null
+          quadra_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quadra_fotos_quadra_id_fkey"
+            columns: ["quadra_id"]
+            isOneToOne: false
+            referencedRelation: "quadras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quadras: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          nome: string
+          numero: number
+          taxa_condominio: number
+          telefone: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          nome: string
+          numero: number
+          taxa_condominio: number
+          telefone: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          nome?: string
+          numero?: number
+          taxa_condominio?: number
+          telefone?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null

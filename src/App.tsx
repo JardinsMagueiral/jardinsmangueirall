@@ -44,6 +44,8 @@ import AdminParceiros from "./pages/admin/AdminParceiros";
 import AdminClientes from "./pages/admin/AdminClientes";
 import AdminClassificados from "./pages/admin/AdminClassificados";
 import AdminGrupos from "./pages/admin/AdminGrupos";
+import AdminQuadras from "./pages/admin/AdminQuadras";
+import QuadraDetalhe from "./pages/QuadraDetalhe";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +60,7 @@ const App = () => (
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Index />} />
+              <Route path="/quadra/:numero" element={<QuadraDetalhe />} />
               <Route path="/quem-somos" element={<QuemSomos />} />
               <Route path="/imoveis" element={<Imoveis />} />
               <Route path="/imoveis/:id" element={<ImovelDetalhe />} />
@@ -181,6 +184,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requireAdmin>
                     <AdminGrupos />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/quadras"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminQuadras />
                   </ProtectedRoute>
                 }
               />
