@@ -36,11 +36,25 @@ export default function AdminClassificados() {
     try {
       const { data, error } = await supabase
         .from("classificados")
-        .select("*, profiles:user_id(nome, telefone, email)")
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setClassificados((data as unknown as Classificado[]) || []);
+
+      const userIds = [...new Set((data || []).map((c) => c.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, nome, telefone, email")
+        .in("id", userIds);
+
+      const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+
+      const enriched = (data || []).map((c) => ({
+        ...c,
+        profiles: profileMap.get(c.user_id) || null,
+      }));
+
+      setClassificados(enriched as Classificado[]);
     } catch (error) {
       console.error("Error:", error);
     } finally {
