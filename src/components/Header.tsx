@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Menu, Home, Users, Building, Handshake, MessageCircle, Phone, Calendar, User, LogIn, Calculator, Tag, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -66,6 +66,29 @@ export function Header() {
   const [quadrasOpen, setQuadrasOpen] = useState(false);
   const { user, profile, loading } = useAuth();
   
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeftRef = useRef(0);
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    isDragging.current = true;
+    startX.current = e.pageX - (scrollRef.current?.offsetLeft || 0);
+    scrollLeftRef.current = scrollRef.current?.scrollLeft || 0;
+  }, []);
+
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging.current || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.5;
+    scrollRef.current.scrollLeft = scrollLeftRef.current - walk;
+  }, []);
+
+  const onMouseUpOrLeave = useCallback(() => {
+    isDragging.current = false;
+  }, []);
+  
   return <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container flex h-16 items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2">
@@ -85,7 +108,7 @@ export function Header() {
               <ChevronDown className="h-3 w-3 transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </DropdownMenuTrigger>
             <DropdownMenuContent className="z-50 rounded-xl border-primary/20 bg-card shadow-xl p-0" align="start">
-              <div className="flex flex-row items-center gap-1 bg-primary/10 rounded-xl m-1 p-2 overflow-x-auto">
+              <div ref={scrollRef} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUpOrLeave} onMouseLeave={onMouseUpOrLeave} className="flex flex-row items-center gap-1 bg-primary/10 rounded-xl m-1 p-2 overflow-x-auto cursor-grab active:cursor-grabbing select-none">
                 <DropdownMenuItem asChild className="shrink-0 rounded-lg px-3 py-2 font-medium focus:bg-primary/20 focus:text-primary">
                   <Link to="/" className="cursor-pointer flex items-center gap-1.5">
                     <Home className="h-4 w-4 text-primary" />
