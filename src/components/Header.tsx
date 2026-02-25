@@ -16,38 +16,47 @@ const quadras = Array.from({ length: 15 }, (_, i) => ({
 
 const menuItems = [{
   label: "Quem Somos",
+  shortLabel: "Quem Somos",
   href: "/quem-somos",
   icon: Users
 }, {
   label: "Morar & Viver",
+  shortLabel: "Morar & Viver",
   href: "/imoveis",
   icon: Building
 }, {
   label: "Comunidade",
+  shortLabel: "Comunidade",
   href: "/comunidade",
   icon: Users
 }, {
   label: "Parceiros e Indicações",
+  shortLabel: "Parceiros",
   href: "/parceiros",
   icon: Handshake
 }, {
   label: "Grupos WhatsApp",
+  shortLabel: "Grupos",
   href: "/grupos",
   icon: MessageCircle
 }, {
   label: "Eventos",
+  shortLabel: "Eventos",
   href: "/eventos",
   icon: Calendar
 }, {
   label: "Calculadoras",
+  shortLabel: "Calculadoras",
   href: "/calculadoras",
   icon: Calculator
 }, {
   label: "Trocas e Vendas",
+  shortLabel: "Trocas e Vendas",
   href: "/classificados",
   icon: Tag
 }, {
   label: "Contato",
+  shortLabel: "Contato",
   href: "/contato",
   icon: Phone
 }];
@@ -67,15 +76,15 @@ export function Header() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden items-center gap-1 lg:flex">
+        <nav className="hidden items-center gap-0.5 xl:flex">
           {/* Início Dropdown */}
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary outline-none">
-              <Home className="h-4 w-4" />
+            <DropdownMenuTrigger className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary outline-none">
+              <Home className="h-3.5 w-3.5" />
               Início
               <ChevronDown className="h-3 w-3 transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="z-50 w-56 max-h-[70vh] overflow-y-auto rounded-xl border-primary/20 bg-card shadow-xl p-0">
+            <DropdownMenuContent className="z-50 w-[420px] rounded-xl border-primary/20 bg-card shadow-xl p-0">
               <div className="bg-primary px-4 py-3 rounded-t-xl">
                 <span className="text-sm font-semibold text-primary-foreground">Navegação Rápida</span>
               </div>
@@ -88,17 +97,17 @@ export function Header() {
                 </DropdownMenuItem>
               </div>
               <DropdownMenuSeparator className="bg-border/60" />
-              <div className="px-3 py-2">
+              <div className="px-3 pt-2 pb-1">
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quadras Residenciais</span>
               </div>
-              <div className="p-1 space-y-0.5">
+              <div className="grid grid-cols-3 gap-1.5 p-3 mx-2 mb-2 bg-primary/5 rounded-lg">
                 {quadras.map((q) => (
-                  <DropdownMenuItem key={q.numero} asChild className="rounded-lg px-3 py-2 focus:bg-primary/10 focus:text-primary">
-                    <Link to={q.href} className="cursor-pointer flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-xs font-bold text-primary">
+                  <DropdownMenuItem key={q.numero} asChild className="rounded-md px-0 py-0 focus:bg-primary/15 focus:text-primary">
+                    <Link to={q.href} className="cursor-pointer flex items-center gap-1.5 px-2 py-1.5">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary/15 text-[10px] font-bold text-primary">
                         {String(q.numero).padStart(2, "0")}
                       </span>
-                      {q.label}
+                      <span className="text-xs font-medium">Quadra {String(q.numero).padStart(2, "0")}</span>
                     </Link>
                   </DropdownMenuItem>
                 ))}
@@ -106,8 +115,8 @@ export function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {menuItems.map(item => <Link key={item.href} to={item.href} className="rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary">
-              {item.label}
+          {menuItems.map(item => <Link key={item.href} to={item.href} className="rounded-lg px-2 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary">
+              {item.shortLabel}
             </Link>)}
         </nav>
 
@@ -138,7 +147,7 @@ export function Header() {
 
           {/* Mobile Menu */}
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            <SheetTrigger asChild className="lg:hidden">
+            <SheetTrigger asChild className="xl:hidden">
               <Button variant="ghost" size="icon">
                 <Menu className="h-5 w-5" />
               </Button>
