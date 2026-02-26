@@ -79,7 +79,6 @@ export function Header() {
     hasDragged.current = false;
     startX.current = e.clientX;
     scrollLeftRef.current = scrollRef.current.scrollLeft;
-    scrollRef.current.setPointerCapture(e.pointerId);
   }, []);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
@@ -89,9 +88,8 @@ export function Header() {
     scrollRef.current.scrollLeft = scrollLeftRef.current - dx;
   }, []);
 
-  const onPointerUp = useCallback((e: React.PointerEvent) => {
+  const onPointerUp = useCallback(() => {
     isDragging.current = false;
-    scrollRef.current?.releasePointerCapture(e.pointerId);
   }, []);
 
   const onClickCapture = useCallback((e: React.MouseEvent) => {
