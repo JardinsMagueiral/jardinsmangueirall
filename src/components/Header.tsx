@@ -75,6 +75,7 @@ export function Header() {
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (!scrollRef.current) return;
+    e.preventDefault();
     isDragging.current = true;
     hasDragged.current = false;
     startX.current = e.clientX;
