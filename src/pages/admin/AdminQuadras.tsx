@@ -6,9 +6,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, Upload, X, Image, ArrowLeft } from "lucide-react";
+import { Loader2, Upload, X, Image, ArrowLeft, GripVertical } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Quadra {
   id: string;
@@ -22,6 +39,53 @@ interface QuadraFoto {
   ordem: number;
 }
 
+// Sortable photo item component
+function SortableQuadraPhoto({
+  foto,
+  onDelete,
+  isDeleting,
+}: {
+  foto: QuadraFoto;
+  onDelete: (foto: QuadraFoto) => void;
+  isDeleting: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: foto.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative group aspect-square rounded-lg overflow-hidden">
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="absolute left-1 top-1 z-10 cursor-grab rounded bg-black/50 p-1 hover:bg-black/70 active:cursor-grabbing"
+      >
+        <GripVertical className="h-4 w-4 text-white" />
+      </button>
+      <img src={foto.url} alt="" className="h-full w-full object-cover" draggable={false} />
+      <button
+        onClick={() => onDelete(foto)}
+        disabled={isDeleting}
+        className="absolute top-1 right-1 rounded-full bg-destructive p-1 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        {isDeleting ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <X className="h-4 w-4" />
+        )}
+      </button>
+    </div>
+  );
+}
+
 export default function AdminQuadras() {
   const [quadras, setQuadras] = useState<Quadra[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +94,12 @@ export default function AdminQuadras() {
   const [fotosLoading, setFotosLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   useEffect(() => {
     fetchQuadras();
@@ -71,6 +141,7 @@ export default function AdminQuadras() {
 
     setUploading(true);
     try {
+      let currentOrdem = fotos.length;
       for (const file of files) {
         if (file.size > 5 * 1024 * 1024) {
           toast.error(`${file.name} excede 5MB.`);
@@ -89,8 +160,9 @@ export default function AdminQuadras() {
         await supabase.from("quadra_fotos").insert({
           quadra_id: selectedQuadra.id,
           url: urlData.publicUrl,
-          ordem: fotos.length,
+          ordem: currentOrdem,
         });
+        currentOrdem++;
       }
       toast.success("Fotos enviadas!");
       fetchFotos(selectedQuadra.id);
@@ -107,7 +179,6 @@ export default function AdminQuadras() {
     if (!selectedQuadra) return;
     setDeleting(foto.id);
     try {
-      // Extract path from URL
       const url = new URL(foto.url);
       const pathParts = url.pathname.split("/storage/v1/object/public/quadras/");
       if (pathParts[1]) {
@@ -122,6 +193,30 @@ export default function AdminQuadras() {
       setDeleting(null);
     }
   };
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !selectedQuadra) return;
+
+    const oldIndex = fotos.findIndex((f) => f.id === active.id);
+    const newIndex = fotos.findIndex((f) => f.id === over.id);
+    const reordered = arrayMove(fotos, oldIndex, newIndex);
+    setFotos(reordered);
+
+    // Persist new order
+    setSavingOrder(true);
+    try {
+      const updates = reordered.map((foto, index) =>
+        supabase.from("quadra_fotos").update({ ordem: index }).eq("id", foto.id)
+      );
+      await Promise.all(updates);
+    } catch {
+      toast.error("Erro ao salvar ordem.");
+      fetchFotos(selectedQuadra.id);
+    } finally {
+      setSavingOrder(false);
+    }
+  }, [fotos, selectedQuadra, fetchFotos]);
 
   return (
     <>
@@ -178,7 +273,8 @@ export default function AdminQuadras() {
               Fotos - Quadra {selectedQuadra && String(selectedQuadra.numero).padStart(2, "0")}
             </DialogTitle>
             <DialogDescription>
-              {selectedQuadra?.nome} — Máximo de 10 fotos
+              {selectedQuadra?.nome} — Máximo de 10 fotos. Arraste para reordenar.
+              {savingOrder && <span className="ml-2 text-primary">(Salvando ordem...)</span>}
             </DialogDescription>
           </DialogHeader>
 
@@ -188,24 +284,20 @@ export default function AdminQuadras() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {fotos.map((foto) => (
-                  <div key={foto.id} className="relative group aspect-square rounded-lg overflow-hidden">
-                    <img src={foto.url} alt="" className="h-full w-full object-cover" />
-                    <button
-                      onClick={() => handleDelete(foto)}
-                      disabled={deleting === foto.id}
-                      className="absolute top-1 right-1 rounded-full bg-destructive p-1 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      {deleting === foto.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <X className="h-4 w-4" />
-                      )}
-                    </button>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={fotos.map((f) => f.id)} strategy={rectSortingStrategy}>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {fotos.map((foto) => (
+                      <SortableQuadraPhoto
+                        key={foto.id}
+                        foto={foto}
+                        onDelete={handleDelete}
+                        isDeleting={deleting === foto.id}
+                      />
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
 
               {fotos.length < 10 && (
                 <div className="mt-4">
