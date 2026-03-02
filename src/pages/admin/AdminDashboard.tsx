@@ -8,7 +8,7 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Home, CheckCircle, XCircle, Clock, Building, CalendarDays, Handshake, Users, Tag, MessageCircle, MapPin } from "lucide-react";
+import { Loader2, Plus, Home, CheckCircle, XCircle, Clock, Building, CalendarDays, Handshake, Users, Tag, MessageCircle, MapPin, Newspaper } from "lucide-react";
 
 interface Stats {
   total: number;
@@ -279,12 +279,29 @@ export default function AdminDashboard() {
                     Gerenciar Quadras
                   </CardTitle>
                   <CardDescription>
-                    Adicionar e remover fotos das quadras do condomínio
+                    Editar dados e fotos das quadras do condomínio
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Button asChild className="w-full">
                     <Link to="/admin/quadras">Ver Quadras</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Newspaper className="h-5 w-5" />
+                    Gerenciar Notícias
+                  </CardTitle>
+                  <CardDescription>
+                    Aprovar e gerenciar notícias da comunidade
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button asChild className="w-full">
+                    <Link to="/admin/noticias">Ver Notícias</Link>
                   </Button>
                 </CardContent>
               </Card>

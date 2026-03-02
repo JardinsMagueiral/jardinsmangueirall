@@ -6,7 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, Upload, X, Image, ArrowLeft, GripVertical } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, Upload, X, Image, ArrowLeft, GripVertical, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -31,6 +33,9 @@ interface Quadra {
   id: string;
   numero: number;
   nome: string;
+  telefone: string;
+  email: string;
+  taxa_condominio: number;
 }
 
 interface QuadraFoto {
@@ -95,6 +100,9 @@ export default function AdminQuadras() {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [savingOrder, setSavingOrder] = useState(false);
+  const [editingQuadra, setEditingQuadra] = useState<Quadra | null>(null);
+  const [editForm, setEditForm] = useState({ nome: "", numero: "", telefone: "", email: "", taxa_condominio: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -108,7 +116,7 @@ export default function AdminQuadras() {
   const fetchQuadras = async () => {
     const { data } = await supabase
       .from("quadras")
-      .select("id, numero, nome")
+      .select("id, numero, nome, telefone, email, taxa_condominio")
       .order("numero");
     setQuadras((data as Quadra[]) || []);
     setLoading(false);
@@ -194,6 +202,42 @@ export default function AdminQuadras() {
     }
   };
 
+  const openEditDialog = (quadra: Quadra) => {
+    setEditingQuadra(quadra);
+    setEditForm({
+      nome: quadra.nome,
+      numero: String(quadra.numero),
+      telefone: quadra.telefone,
+      email: quadra.email,
+      taxa_condominio: String(quadra.taxa_condominio),
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingQuadra) return;
+    setSavingEdit(true);
+    try {
+      const { error } = await supabase
+        .from("quadras")
+        .update({
+          nome: editForm.nome.trim(),
+          numero: Number(editForm.numero),
+          telefone: editForm.telefone.trim(),
+          email: editForm.email.trim(),
+          taxa_condominio: Number(editForm.taxa_condominio),
+        })
+        .eq("id", editingQuadra.id);
+      if (error) throw error;
+      toast.success("Quadra atualizada!");
+      setEditingQuadra(null);
+      fetchQuadras();
+    } catch {
+      toast.error("Erro ao salvar.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !selectedQuadra) return;
@@ -234,7 +278,7 @@ export default function AdminQuadras() {
               </Link>
             </Button>
 
-            <h1 className="font-serif text-3xl font-bold mb-6">Gerenciar Fotos das Quadras</h1>
+            <h1 className="font-serif text-3xl font-bold mb-6">Gerenciar Quadras</h1>
 
             {loading ? (
               <div className="flex justify-center py-8">
@@ -251,10 +295,17 @@ export default function AdminQuadras() {
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-muted-foreground">{q.nome}</p>
-                      <Button variant="outline" size="sm" className="mt-3 w-full">
-                        <Image className="mr-2 h-4 w-4" />
-                        Gerenciar Fotos
-                      </Button>
+                      <p className="text-xs text-muted-foreground mt-1">Taxa: R$ {Number(q.taxa_condominio).toFixed(2)}</p>
+                      <div className="mt-3 flex gap-2">
+                        <Button variant="outline" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); openEditDialog(q); }}>
+                          <Pencil className="mr-1 h-3 w-3" />
+                          Editar
+                        </Button>
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => openDialog(q)}>
+                          <Image className="mr-1 h-3 w-3" />
+                          Fotos
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -325,6 +376,41 @@ export default function AdminQuadras() {
               )}
             </>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* Edit Quadra Dialog */}
+      <Dialog open={!!editingQuadra} onOpenChange={(open) => !open && setEditingQuadra(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Quadra {editingQuadra && String(editingQuadra.numero).padStart(2, "0")}</DialogTitle>
+            <DialogDescription>Altere os dados da quadra abaixo.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-nome">Nome</Label>
+              <Input id="edit-nome" value={editForm.nome} onChange={(e) => setEditForm((f) => ({ ...f, nome: e.target.value }))} />
+            </div>
+            <div>
+              <Label htmlFor="edit-numero">Número</Label>
+              <Input id="edit-numero" type="number" value={editForm.numero} onChange={(e) => setEditForm((f) => ({ ...f, numero: e.target.value }))} />
+            </div>
+            <div>
+              <Label htmlFor="edit-telefone">Telefone</Label>
+              <Input id="edit-telefone" value={editForm.telefone} onChange={(e) => setEditForm((f) => ({ ...f, telefone: e.target.value }))} />
+            </div>
+            <div>
+              <Label htmlFor="edit-email">Email</Label>
+              <Input id="edit-email" type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
+            </div>
+            <div>
+              <Label htmlFor="edit-taxa">Taxa de Condomínio (R$)</Label>
+              <Input id="edit-taxa" type="number" step="0.01" value={editForm.taxa_condominio} onChange={(e) => setEditForm((f) => ({ ...f, taxa_condominio: e.target.value }))} />
+            </div>
+            <Button onClick={handleSaveEdit} disabled={savingEdit} className="w-full">
+              {savingEdit && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar Alterações
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

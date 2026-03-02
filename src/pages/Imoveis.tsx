@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Building, MessageCircle, Key, Loader2, Bed, Bath, Car, Maximize, Search, Star, DollarSign, Home } from "lucide-react";
+import { Building, MessageCircle, Key, Loader2, Bed, Bath, Car, Maximize, Search, Star, DollarSign, Home, ArrowUpDown } from "lucide-react";
 
 interface Imovel {
   id: string;
@@ -37,6 +37,7 @@ const Imoveis = () => {
   const [precoMax, setPrecoMax] = useState(searchParams.get("precoMax") || "");
   const [quartosFilter, setQuartosFilter] = useState(searchParams.get("quartos") || "all");
   const [banheirosFilter, setBanheirosFilter] = useState(searchParams.get("banheiros") || "all");
+  const [sortOrder, setSortOrder] = useState("recent");
 
   useEffect(() => {
     fetchImoveis();
@@ -80,20 +81,26 @@ const Imoveis = () => {
     }).format(price);
   };
 
-  const filteredImoveis = imoveis.filter((imovel) => {
-    const matchesTipo = tipoFilter === "all" || imovel.tipo === tipoFilter;
-    const matchesOperacao = operacaoFilter === "all" || imovel.operacao === operacaoFilter;
-    const matchesSearch = searchQuery === "" || 
-      imovel.endereco.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      imovel.bairro.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPrecoMin = !precoMin || imovel.preco >= Number(precoMin);
-    const matchesPrecoMax = !precoMax || imovel.preco <= Number(precoMax);
-    const matchesQuartos = quartosFilter === "all" || 
-      (quartosFilter === "4" ? imovel.quartos >= 4 : imovel.quartos === Number(quartosFilter));
-    const matchesBanheiros = banheirosFilter === "all" || 
-      (banheirosFilter === "3" ? imovel.banheiros >= 3 : imovel.banheiros === Number(banheirosFilter));
-    return matchesTipo && matchesOperacao && matchesSearch && matchesPrecoMin && matchesPrecoMax && matchesQuartos && matchesBanheiros;
-  });
+  const filteredImoveis = imoveis
+    .filter((imovel) => {
+      const matchesTipo = tipoFilter === "all" || imovel.tipo === tipoFilter;
+      const matchesOperacao = operacaoFilter === "all" || imovel.operacao === operacaoFilter;
+      const matchesSearch = searchQuery === "" || 
+        imovel.endereco.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        imovel.bairro.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesPrecoMin = !precoMin || imovel.preco >= Number(precoMin);
+      const matchesPrecoMax = !precoMax || imovel.preco <= Number(precoMax);
+      const matchesQuartos = quartosFilter === "all" || 
+        (quartosFilter === "4" ? imovel.quartos >= 4 : imovel.quartos === Number(quartosFilter));
+      const matchesBanheiros = banheirosFilter === "all" || 
+        (banheirosFilter === "3" ? imovel.banheiros >= 3 : imovel.banheiros === Number(banheirosFilter));
+      return matchesTipo && matchesOperacao && matchesSearch && matchesPrecoMin && matchesPrecoMax && matchesQuartos && matchesBanheiros;
+    })
+    .sort((a, b) => {
+      if (sortOrder === "price_asc") return a.preco - b.preco;
+      if (sortOrder === "price_desc") return b.preco - a.preco;
+      return 0;
+    });
 
   return (
     <>
@@ -212,6 +219,17 @@ const Imoveis = () => {
                       <SelectItem value="1">1 Banheiro</SelectItem>
                       <SelectItem value="2">2 Banheiros</SelectItem>
                       <SelectItem value="3">3+ Banheiros</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={sortOrder} onValueChange={setSortOrder}>
+                    <SelectTrigger className="w-40">
+                      <ArrowUpDown className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <SelectValue placeholder="Ordenar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="recent">Mais Recentes</SelectItem>
+                      <SelectItem value="price_asc">Menor Preço</SelectItem>
+                      <SelectItem value="price_desc">Maior Preço</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

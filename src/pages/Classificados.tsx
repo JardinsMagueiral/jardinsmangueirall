@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Search, MessageCircle, Tag } from "lucide-react";
+import { Loader2, Plus, Search, MessageCircle, Tag, ArrowUpDown } from "lucide-react";
 
 interface Classificado {
   id: string;
@@ -41,6 +41,7 @@ export default function Classificados() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoriaFilter, setCategoriaFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState("recent");
 
   useEffect(() => {
     fetchClassificados();
@@ -84,20 +85,26 @@ export default function Classificados() {
   const formatPrice = (price: number) =>
     price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const filtered = classificados.filter((item) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      item.titulo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.descricao?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategoria =
-      categoriaFilter === "all" || item.categoria === categoriaFilter;
-    return matchesSearch && matchesCategoria;
-  });
+  const filtered = classificados
+    .filter((item) => {
+      const matchesSearch =
+        searchQuery === "" ||
+        item.titulo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.descricao?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategoria =
+        categoriaFilter === "all" || item.categoria === categoriaFilter;
+      return matchesSearch && matchesCategoria;
+    })
+    .sort((a, b) => {
+      if (sortOrder === "price_asc") return a.preco - b.preco;
+      if (sortOrder === "price_desc") return b.preco - a.preco;
+      return 0;
+    });
 
   return (
     <>
       <Helmet>
-        <title>Trocas e Vendas - Jardins Mangueiral</title>
+        <title>Desapegos - Jardins Mangueiral</title>
         <meta name="description" content="Compre e venda itens na comunidade Jardins Mangueiral. Classificados locais para moradores." />
       </Helmet>
       <div className="flex min-h-screen flex-col bg-background">
@@ -108,7 +115,7 @@ export default function Classificados() {
             <div className="container px-4 text-center">
               <Tag className="mx-auto mb-4 h-10 w-10 text-primary" />
               <h1 className="font-serif text-3xl font-bold md:text-4xl">
-                Trocas e Vendas
+                Desapegos
               </h1>
               <p className="mx-auto mt-2 max-w-xl text-muted-foreground">
                 Compre e venda itens com seus vizinhos do Jardins Mangueiral
@@ -152,6 +159,17 @@ export default function Classificados() {
                   {CATEGORIAS.map((cat) => (
                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+              <Select value={sortOrder} onValueChange={setSortOrder}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <ArrowUpDown className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Ordenar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Mais Recentes</SelectItem>
+                  <SelectItem value="price_asc">Menor Preço</SelectItem>
+                  <SelectItem value="price_desc">Maior Preço</SelectItem>
                 </SelectContent>
               </Select>
             </div>
