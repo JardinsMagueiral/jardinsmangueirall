@@ -25,9 +25,9 @@ const menuItems = [{
   href: "/imoveis",
   icon: Building
 }, {
-  label: "Comunidade",
-  shortLabel: "Comunidade",
-  href: "/comunidade",
+  label: "Notícias",
+  shortLabel: "Notícias",
+  href: "/noticias",
   icon: Users
 }, {
   label: "Parceiros e Indicações",
@@ -50,8 +50,8 @@ const menuItems = [{
   href: "/calculadoras",
   icon: Calculator
 }, {
-  label: "Trocas e Vendas",
-  shortLabel: "Trocas e Vendas",
+  label: "Desapegos",
+  shortLabel: "Desapegos",
   href: "/classificados",
   icon: Tag
 }, {

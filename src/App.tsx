@@ -12,7 +12,7 @@ import Index from "./pages/Index";
 import QuemSomos from "./pages/QuemSomos";
 import Imoveis from "./pages/Imoveis";
 import ImovelDetalhe from "./pages/ImovelDetalhe";
-import Comunidade from "./pages/Comunidade";
+import Noticias from "./pages/Noticias";
 import Parceiros from "./pages/Parceiros";
 import Grupos from "./pages/Grupos";
 import Eventos from "./pages/Eventos";
@@ -45,6 +45,7 @@ import AdminClientes from "./pages/admin/AdminClientes";
 import AdminClassificados from "./pages/admin/AdminClassificados";
 import AdminGrupos from "./pages/admin/AdminGrupos";
 import AdminQuadras from "./pages/admin/AdminQuadras";
+import AdminNoticias from "./pages/admin/AdminNoticias";
 import QuadraDetalhe from "./pages/QuadraDetalhe";
 
 const queryClient = new QueryClient();
@@ -64,7 +65,7 @@ const App = () => (
               <Route path="/quem-somos" element={<QuemSomos />} />
               <Route path="/imoveis" element={<Imoveis />} />
               <Route path="/imoveis/:id" element={<ImovelDetalhe />} />
-              <Route path="/comunidade" element={<Comunidade />} />
+              <Route path="/noticias" element={<Noticias />} />
               <Route path="/parceiros" element={<Parceiros />} />
               <Route path="/grupos" element={<Grupos />} />
               <Route path="/eventos" element={<Eventos />} />
@@ -192,6 +193,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requireAdmin>
                     <AdminQuadras />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/noticias"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminNoticias />
                   </ProtectedRoute>
                 }
               />

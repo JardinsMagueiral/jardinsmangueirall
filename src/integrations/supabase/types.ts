@@ -258,6 +258,36 @@ export type Database = {
           },
         ]
       }
+      noticias: {
+        Row: {
+          created_at: string | null
+          descricao: string | null
+          id: string
+          link: string | null
+          status: string | null
+          titulo: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          link?: string | null
+          status?: string | null
+          titulo: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          link?: string | null
+          status?: string | null
+          titulo?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       parceiro_fotos: {
         Row: {
           created_at: string | null
