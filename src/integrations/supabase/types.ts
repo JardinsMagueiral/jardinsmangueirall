@@ -263,6 +263,7 @@ export type Database = {
           created_at: string | null
           descricao: string | null
           id: string
+          imagem_url: string | null
           link: string | null
           status: string | null
           titulo: string
@@ -272,6 +273,7 @@ export type Database = {
           created_at?: string | null
           descricao?: string | null
           id?: string
+          imagem_url?: string | null
           link?: string | null
           status?: string | null
           titulo: string
@@ -281,6 +283,7 @@ export type Database = {
           created_at?: string | null
           descricao?: string | null
           id?: string
+          imagem_url?: string | null
           link?: string | null
           status?: string | null
           titulo?: string
