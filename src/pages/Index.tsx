@@ -11,13 +11,11 @@ const Index = () => {
   return (
     <>
       <Helmet>
-        <title>Jardins Mangueiral - Comunidade, Imóveis e Serviços em Brasília</title>
+        <title>Jardins Mangueiral - Sua Comunidade em Brasília</title>
         <meta 
           name="description" 
-          content="Portal da comunidade Jardins Mangueiral em Brasília. Encontre imóveis para venda e aluguel, eventos, parceiros, notícias e grupos de WhatsApp do condomínio." 
+          content="Conectando vizinhos e fortalecendo comunidades no Jardins Mangueiral. Encontre imóveis, eventos e serviços locais." 
         />
-        <meta name="keywords" content="Jardins Mangueiral, imóveis Jardins Mangueiral, comunidade Jardins Mangueiral, Brasília, aluguel, venda, condomínio" />
-        <link rel="canonical" href="https://jardinsmangueiral.com/" />
       </Helmet>
       <div className="flex min-h-screen flex-col bg-background">
         <Header />
